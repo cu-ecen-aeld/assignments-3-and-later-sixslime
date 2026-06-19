@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     FILE *file_obj = fopen(filename, "w");
 
     if (file_obj == NULL) {
-        syslog(LOG_ERR, "Error opening file %s: %s\n", file_name, strerror(errno));
+        syslog(LOG_ERR, "Error opening file %s: %s\n", file_name, strerror( errno ));
         return 1;
     }
 
