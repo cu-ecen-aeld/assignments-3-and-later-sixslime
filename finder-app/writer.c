@@ -4,11 +4,11 @@
 #include <syslog.h>
 
 int main(int argc, char *argv[]) {
+    openlog(NULL, 0, LOG_USER);
     if (argc != 3) {
         syslog(LOG_ERR, "Two args are required: <writefile> <writestr>\n");
         return 1;
     }
-    openlog(NULL, 0, LOG_USER);
 
     char* file_name = argv[1];
 
