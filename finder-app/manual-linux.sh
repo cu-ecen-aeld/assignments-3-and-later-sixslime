@@ -37,15 +37,20 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} mrproper
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig
     make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} all
-    # make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
     # ---
 fi
 
 echo "Adding the Image in outdir"
+cd "$OUTDIR"
+if [ ! -e vmlinux ]
+then
+    cp linux-stable/vmlinux vmlinux
+fi
 
 echo "Creating the staging directory for the root filesystem"
-cd "$OUTDIR"
+
 if [ -d "${OUTDIR}/rootfs" ]
 then
 	echo "Deleting rootfs directory at ${OUTDIR}/rootfs and starting over"
@@ -53,7 +58,8 @@ then
 fi
 
 # TODO: Create necessary base directories
-cd "$OUTDIR/rootfs"
+mkdir "${OUTDIR}/rootfs"
+cd "${OUTDIR}/rootfs"
 mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr var
 mkdir -p user/bin usr/lib usr/sbin
 mkdir -p var/log
