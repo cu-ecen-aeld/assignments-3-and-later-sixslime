@@ -75,11 +75,13 @@ git clone git://busybox.net/busybox.git
     make distclean
     make defconfig
     make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
-    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install
     # ---
 else
     cd busybox
 fi
+
+# install busybox:
+make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install
 
 # ROOTFS:
 cd "${OUTDIR}/rootfs"
