@@ -71,18 +71,18 @@ then
 git clone git://busybox.net/busybox.git
     cd busybox
     git checkout ${BUSYBOX_VERSION}
-    # TODO:  Configure busybox
-    # ???
+    # TODO: make and install busybox(?)
+    make distclean
+    make defconfig
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install
+    # ---
 else
     cd busybox
 fi
 
-# TODO: Make and install busybox
-make distclean
-make defconfig
-make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
-make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} CONFIG_PREFIX=${OUTDIR}/rootfs install
-# ---
+# ROOTFS:
+cd "${OUTDIR}/rootfs"
 
 echo "Library dependencies"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
