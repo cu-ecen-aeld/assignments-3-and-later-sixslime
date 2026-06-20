@@ -57,10 +57,20 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    pid_t pid = fork();
 
-    va_end(args);
-
-    return true;
+    if (pid == -1) {
+        return false;
+    } else if (pid == 0) {
+        execv(command[0], command);
+        _exit(1);
+    } else {
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            return false;
+        }
+        return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    }
 }
 
 /**
