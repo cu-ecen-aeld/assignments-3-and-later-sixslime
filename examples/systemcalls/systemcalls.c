@@ -104,5 +104,28 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 
     va_end(args);
 
-    return true;
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        return false;
+    } else if (pid == 0) {
+        // C blows, respectfully.
+        int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+        if (fd == -1) {
+            _exit(1);
+        }
+        if (dup2(fd, STDOUT_FILENO) == -1) {
+            close(fd);
+            _exit(1);
+        }
+        close(fd);
+        execv(command[0], command);
+        _exit(1);
+    } else {
+        int status;
+        if (waitpid(pid, &status, 0) == -1) {
+            return false;
+        }
+        return WIFEXITED(status) && WEXITSTATUS(status) == 0;
+    }
 }
