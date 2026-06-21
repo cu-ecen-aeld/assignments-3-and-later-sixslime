@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Used claude AI to provide a working example, read man pages for relevant commands, then re-wrote implementation. Primarily gained knowledge of 'wc -l' and 'test -ne'
 
