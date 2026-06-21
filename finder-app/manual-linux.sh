@@ -102,7 +102,7 @@ sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 666 dev/console c 5 1
 sudo mknod -m 666 dev/ptmx c 5 2
 sudo mknod -m 666 dev/tty c 5 0
-sudo mknod -m 666 dev/ttyAMA0 c 5 0
+sudo mknod -m 666 dev/ttyAMA0 c 5 1
 
 # TODO: Clean and build the writer utility
 cd "$FINDER_APP_DIR"
