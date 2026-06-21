@@ -100,6 +100,8 @@ cp -r ${FINDER_APP_DIR}/shared_lib/lib64/. lib64/
 # TODO: Make device nodes
 sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 666 dev/console c 5 1
+sudo mknod -m 666 dev/ptmx c 5 2
+sudo mknod -m 666 dev/tty c 5 0
 
 # TODO: Clean and build the writer utility
 cd "$FINDER_APP_DIR"
