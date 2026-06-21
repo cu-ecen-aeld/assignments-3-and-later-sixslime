@@ -44,9 +44,9 @@ fi
 
 echo "Adding the Image in outdir"
 cd "$OUTDIR"
-if [ ! -e vmlinux ]
+if [ ! -e Image ]
 then
-    cp linux-stable/vmlinux vmlinux
+    cp linux-stable/vmlinux Image
 fi
 
 echo "Creating the staging directory for the root filesystem"
