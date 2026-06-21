@@ -90,17 +90,33 @@ echo "Library dependencies"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
+echo "Should match:"
+ls -R ${FINDER_APP_DIR}/shared_lib
+
 # TODO: Add library dependencies to rootfs
 cp -r ${FINDER_APP_DIR}/shared_lib/lib/. lib/
 cp -r ${FINDER_APP_DIR}/shared_lib/lib64/. lib64/
 
 # TODO: Make device nodes
+sudo mknod -m 666 dev/null c 1 3
+sudo mknod -m 666 dev/console c 1 5
 
 # TODO: Clean and build the writer utility
+cd "$FINDER_APP_DIR"
+make clean
+make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} writer
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
+cd "${OUTDIR}/rootfs/home"
+cp ${FINDER_APP_DIR}/. .
+rm -rf shared_lib
 
 # TODO: Chown the root directory
+cd "${OUTDIR}/rootfs"
+sudo chown -R root:root ./
 
 # TODO: Create initramfs.cpio.gz
+cd "$OUTDIR"
+find rootfs/ | cpio -H newc -ov --owner root:root > initramfs.cpio
+gzip -f initramfs.cpio
