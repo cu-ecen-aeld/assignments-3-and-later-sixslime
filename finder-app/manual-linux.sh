@@ -46,7 +46,7 @@ echo "Adding the Image in outdir"
 cd "$OUTDIR"
 if [ ! -e Image ]
 then
-    cp linux-stable/vmlinux Image
+    cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image Image
 fi
 
 echo "Creating the staging directory for the root filesystem"
