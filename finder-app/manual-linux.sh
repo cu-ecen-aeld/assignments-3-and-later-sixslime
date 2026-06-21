@@ -109,7 +109,7 @@ make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} writer
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 cd "${OUTDIR}/rootfs/home"
-cp ${FINDER_APP_DIR}/. .
+cp -r ${FINDER_APP_DIR}/. .
 rm -rf shared_lib
 
 # TODO: Chown the root directory
