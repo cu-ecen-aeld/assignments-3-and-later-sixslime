@@ -24,40 +24,29 @@ fi
 mkdir -p ${OUTDIR}
 
 cd "$OUTDIR"
+if [ ! -d "${OUTDIR}/linux-stable" ]; then
+    #Clone only if the repository does not exist.
+	echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
+	git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
+fi
+if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
+    cd linux-stable
+    echo "Checking out version ${KERNEL_VERSION}"
+    git checkout ${KERNEL_VERSION}
+    # TODO: Add your kernel build steps here
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} mrproper
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig
+    make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} all
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
+    make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
+    # ---
+fi
 
-#  prebuilt image included in repo so we arent RECOMPILING THE LINUX KERNEL ON PUSH.
-
-if [ ! -e "${FINDER_APP_DIR}/shared_lib/vmlinux "]
+echo "Adding the Image in outdir"
+cd "$OUTDIR"
+if [ ! -e Image ]
 then
-    if [ ! -d "${OUTDIR}/linux-stable" ]; then
-        #Clone only if the repository does not exist.
-        echo "CLONING GIT LINUX STABLE VERSION ${KERNEL_VERSION} IN ${OUTDIR}"
-        git clone ${KERNEL_REPO} --depth 1 --single-branch --branch ${KERNEL_VERSION}
-    fi
-    if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
-        cd linux-stable
-        echo "Checking out version ${KERNEL_VERSION}"
-        git checkout ${KERNEL_VERSION}
-        # TODO: Add your kernel build steps here
-        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} mrproper
-        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} defconfig
-        make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} all
-        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} modules
-        make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} dtbs
-        # ---
-    fi
-    echo "Adding the Image in outdir"
-    cd "$OUTDIR"
-    if [ ! -e Image ]
-    then
-        cp linux-stable/vmlinux Image
-    fi
-else
-    echo "Using pre-build vmlinux as Image"
-    if [ ! -e Image ]
-    then
-        cp ${FINDER_APP_DIR}/shared_lib/vmlinux Image
-    fi
+    cp linux-stable/vmlinux Image
 fi
 
 echo "Creating the staging directory for the root filesystem"
