@@ -113,6 +113,7 @@ make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} writer
 # on the target rootfs
 cd "${OUTDIR}/rootfs/home"
 cp -rL ${FINDER_APP_DIR}/. .
+chmod 775 ./conf
 rm -rf shared_lib
 
 # TODO: Chown the root directory
