@@ -42,7 +42,7 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
      * See implementation details in threading.h file comment block
      */
     struct thread_data *thread_args = malloc(sizeof(*thread_args));
-    if (!p) return false;
+    if (!thread_args) return false;
 
     *thread_args = (struct thread_data){
         .mutex = mutex,
