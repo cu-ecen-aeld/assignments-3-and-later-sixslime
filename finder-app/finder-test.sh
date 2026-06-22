@@ -8,7 +8,8 @@ set -u
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
 WRITEDIR=/tmp/aeld-data
-username=$(cat conf/username.txt)
+CONFDIR=/etc/finder-app/conf
+username=$(cat ${CONFDIR}/username.txt)
 
 if [ $# -lt 3 ]
 then
@@ -34,7 +35,7 @@ rm -rf "${WRITEDIR}"
 # create $WRITEDIR if not assignment1
 # STUDENT: I'm sure i just did the assignment wrong but changing this line makes the test pass.
 # assignment=`cat ../conf/assignment.txt`
-assignment=`cat ./conf/assignment.txt`
+assignment=`cat ${CONFDIR}/assignment.txt`
 
 if [ $assignment != 'assignment1' ]
 then
@@ -55,10 +56,10 @@ fi
 
 for i in $( seq 1 $NUMFILES)
 do
-	./writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(finder.sh "$WRITEDIR" "$WRITESTR")
 
 # remove temporary directories
 rm -rf /tmp/aeld-data
