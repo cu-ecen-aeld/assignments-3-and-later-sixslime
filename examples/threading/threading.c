@@ -15,7 +15,7 @@ void* threadfunc(void* thread_param)
     struct thread_data* thread_args = (struct thread_data *) thread_param;
 
     usleep(thread_args->wait_obtain * 1000);
-    int rc = pthread_mutex_lock(thread_data->mutex);
+    int rc = pthread_mutex_lock(thread_args->mutex);
     if (rc != 0) {
         ERROR_LOG("pthread_mutex_lock failed: %d", rc);
         return thread_param;
