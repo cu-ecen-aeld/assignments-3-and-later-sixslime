@@ -14,6 +14,8 @@
 
 void handle_signal(int signal);
 
+int reexcec_as_daemon(char* const argv[]);
+
 int setup_socket_listener(int port);
 
 void recv_send_file(const char *file_path, int socket_fd);

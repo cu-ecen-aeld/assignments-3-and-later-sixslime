@@ -9,8 +9,89 @@
 
 static volatile sig_atomic_t stop_signal = 0;
 
-int main(int argc, char *argv[]) {
+// C is disguisting
+int reexec_as_daemon(char* const argv[])
+{
+    pid_t pid;
+
+    pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork: %s", STRERROR);
+        return -1;
+    }
+
+    if (pid > 0) {
+        _exit(0);
+    }
+
+    if (setsid() < 0) {
+        syslog(LOG_ERR, "setsid: %s", STRERROR);
+        return -1;
+    }
+
+    pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork: %s", STRERROR);
+        return -1;
+    }
+
+    if (pid > 0) {
+        _exit(0);
+    }
+
+    if (chdir("/") < 0) {
+        syslog(LOG_ERR, "chdir(\"/\"): %s", STRERROR);
+        return -1;
+    }
+
+    umask(0);
+
+    int null_fd = open("/dev/null", O_RDWR);
+    if (null_fd < 0) {
+        syslog(LOG_ERR, "open(\"/dev/null\"): %s", STRERROR);
+        return -1;
+    }
+
+    if (dup2(null_fd, STDIN_FILENO) < 0 ||
+        dup2(null_fd, STDOUT_FILENO) < 0 ||
+        dup2(null_fd, STDERR_FILENO) < 0) {
+        syslog(LOG_ERR, "dup2: %s", STRERROR);
+        close(null_fd);
+        return -1;
+    }
+
+    if (null_fd > STDERR_FILENO) {
+        close(null_fd);
+    }
+
+    char *new_argv[] = { argv[0], NULL };
+    execvp(argv[0], new_argv);
+
+    syslog(LOG_ERR, "execvp(%s): %s", argv[0], STRERROR);
+    return -1;
+}
+int main(int argc, char *argv[])
+{
+
     openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
+
+    // try setup listener:
+    int listen_fd = setup_socket_listener(LISTEN_PORT);
+    if (listen_fd == -1) {
+        return -1;
+    }
+
+    // check for daemon flag:
+    while ((opt = getopt(argc, arcv, "d")) != -1) {
+        switch (opt) {
+            case 'd':
+                close(listen_fd);
+                closelog();
+                return reexec_as_daemon(arcv);
+            default:
+                abort();
+        }
+    }
 
     // signal handling:
     struct sigaction sa;
@@ -20,12 +101,6 @@ int main(int argc, char *argv[]) {
     if (sigaction(SIGINT,  &sa, NULL) == -1 ||
         sigaction(SIGTERM, &sa, NULL) == -1) {
         syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        return -1;
-    }
-
-    // setup listener:
-    int listen_fd = setup_socket_listener(LISTEN_PORT);
-    if (listen_fd == -1) {
         return -1;
     }
 
@@ -63,13 +138,15 @@ int main(int argc, char *argv[]) {
 }
 
 // set stop_signal to 1, let operations finish.
-void handle_signal(int signal) {
+void handle_signal(int signal) 
+{
     (void)signal;
     stop_signal = 1;
 }
 
 // returns socket fd; -1 on error.
-int setup_socket_listener(int port) {
+int setup_socket_listener(int port) 
+{
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
         syslog(LOG_ERR, "socket: %s", STRERROR);
