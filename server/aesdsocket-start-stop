@@ -1,19 +1,20 @@
-#!bin/sh
+#!/bin/sh
 
 name="aesdsocket"
 
 case "$1" in
     start)
         echo "Starting ${name}"
-        start-stop-daemon -S -n ${name} -a /usr/bin/${name} -- -d
+        start-stop-daemon -S -n "${name}" -a "/usr/bin/${name}" -- -d
         ;;
     stop)
         echo "Stopping ${name}"
-        start-stop-daemon -K -n ${name}
+        start-stop-daemon -K -n "${name}"
         ;;
     *)
-    echo "Usage: $0 {start|stop}"
-    exit 1
+        echo "Usage: $0 {start|stop}"
+        exit 1
+        ;;
 esac
 
 exit 0
