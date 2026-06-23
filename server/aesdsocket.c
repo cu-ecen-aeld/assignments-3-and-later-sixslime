@@ -9,70 +9,8 @@
 
 static volatile sig_atomic_t stop_signal = 0;
 
-// C is disguisting
-int reexec_as_daemon(char* const argv[])
-{
-    pid_t pid;
-
-    pid = fork();
-    if (pid < 0) {
-        syslog(LOG_ERR, "fork: %s", STRERROR);
-        return -1;
-    }
-
-    if (pid > 0) {
-        _exit(0);
-    }
-
-    if (setsid() < 0) {
-        syslog(LOG_ERR, "setsid: %s", STRERROR);
-        return -1;
-    }
-
-    pid = fork();
-    if (pid < 0) {
-        syslog(LOG_ERR, "fork: %s", STRERROR);
-        return -1;
-    }
-
-    if (pid > 0) {
-        _exit(0);
-    }
-
-    if (chdir("/") < 0) {
-        syslog(LOG_ERR, "chdir(\"/\"): %s", STRERROR);
-        return -1;
-    }
-
-    umask(0);
-
-    int null_fd = open("/dev/null", O_RDWR);
-    if (null_fd < 0) {
-        syslog(LOG_ERR, "open(\"/dev/null\"): %s", STRERROR);
-        return -1;
-    }
-
-    if (dup2(null_fd, STDIN_FILENO) < 0 ||
-        dup2(null_fd, STDOUT_FILENO) < 0 ||
-        dup2(null_fd, STDERR_FILENO) < 0) {
-        syslog(LOG_ERR, "dup2: %s", STRERROR);
-        close(null_fd);
-        return -1;
-    }
-
-    if (null_fd > STDERR_FILENO) {
-        close(null_fd);
-    }
-
-    char *new_argv[] = { argv[0], NULL };
-    execvp(argv[0], new_argv);
-
-    syslog(LOG_ERR, "execvp(%s): %s", argv[0], STRERROR);
-    return -1;
-}
 int main(int argc, char *argv[])
 {
-
     openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
 
     // try setup listener:
@@ -81,14 +19,16 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // check for daemon flag:
+    // daemonize if flag found:
     int opt;
     while ((opt = getopt(argc, argv, "d")) != -1) {
         switch (opt) {
             case 'd':
-                close(listen_fd);
-                closelog();
-                return reexec_as_daemon(argv);
+                if (daemonize() == -1) {
+                    close(listen_fd);
+                    return -1;
+                }
+                break;
             default:
                 abort();
                 break;
@@ -306,5 +246,62 @@ int send_file_back(const char *file_path, int socket_fd)
     }
 
     close(read_fd);
+    return 0;
+}
+
+// C is disguisting
+int daemonize(void)
+{
+    pid_t pid;
+
+    pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork: %s", STRERROR);
+        return -1;
+    }
+
+    if (pid > 0) {
+        _exit(0);
+    }
+
+    if (setsid() < 0) {
+        syslog(LOG_ERR, "setsid: %s", STRERROR);
+        return -1;
+    }
+
+    pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork: %s", STRERROR);
+        return -1;
+    }
+
+    if (pid > 0) {
+        _exit(0);
+    }
+
+    if (chdir("/") < 0) {
+        syslog(LOG_ERR, "chdir(\"/\"): %s", STRERROR);
+        return -1;
+    }
+
+    umask(0);
+
+    int null_fd = open("/dev/null", O_RDWR);
+    if (null_fd < 0) {
+        syslog(LOG_ERR, "open(\"/dev/null\"): %s", STRERROR);
+        return -1;
+    }
+
+    if (dup2(null_fd, STDIN_FILENO) < 0 ||
+        dup2(null_fd, STDOUT_FILENO) < 0 ||
+        dup2(null_fd, STDERR_FILENO) < 0) {
+        syslog(LOG_ERR, "dup2: %s", STRERROR);
+        close(null_fd);
+        return -1;
+    }
+
+    if (null_fd > STDERR_FILENO) {
+        close(null_fd);
+    }
     return 0;
 }

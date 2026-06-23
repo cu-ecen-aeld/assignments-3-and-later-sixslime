@@ -14,7 +14,7 @@
 
 void handle_signal(int signal);
 
-int reexcec_as_daemon(char* const argv[]);
+int daemonize(void);
 
 int setup_socket_listener(int port);
 
