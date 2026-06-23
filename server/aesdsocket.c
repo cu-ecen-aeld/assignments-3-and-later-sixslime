@@ -88,9 +88,10 @@ int main(int argc, char *argv[])
             case 'd':
                 close(listen_fd);
                 closelog();
-                return reexec_as_daemon(arcv);
+                return reexec_as_daemon(argv);
             default:
                 abort();
+                break;
         }
     }
 
