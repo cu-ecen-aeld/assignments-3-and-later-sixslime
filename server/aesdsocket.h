@@ -14,7 +14,7 @@
 
 void handle_signal(int signal);
 
-int setup_socket(int port);
+int setup_socket_listener(int port);
 
 void send_from_file(const char* file_path, int send_fd);
 

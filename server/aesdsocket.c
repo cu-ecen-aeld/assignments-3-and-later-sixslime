@@ -5,7 +5,7 @@
 #include "aesdsocket.h"
 
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
-#define PORT 9000
+#define LISTEN_PORT 9000
 # define STRERROR = strerror(errno)
 
 
@@ -25,8 +25,39 @@ int main(int argc, char *argv[]) {
     if (sigaction(SIGINT,  &sa, NULL) == -1 ||
         sigaction(SIGTERM, &sa, NULL) == -1) {
         syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        closelog(); return -1;
+        closelog();
+        return -1;
     }
+
+    int listen_fd = setup_socket_listener(LISTEN_PORT);
+    if (listen_fd == -1) {
+        return -1;
+    }
+
+    while (!stop_signal) {
+        struct sockaddr_in client_addr;
+        socklen_t csocket_len = sizeof(client_addr);
+        int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
+        if (client_fd == -1) {
+            if (errno == EINTR) continue;
+            syslog(LOG_ERR, "accept: %s", STRERROR);
+            continue;
+        }
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
+        syslog(LOG_INFO, "Accepted connection from %s", ip_str);
+
+        recv_to_file(client_fd, WRITE_PATH);
+        send_from_file(client_fd, WRITE_PATH);
+
+        close(client_fd);
+        syslog(LOG_INFO, "Closed connection from %s", ip_str);
+    }
+
+    syslog(LOG_INFO, "Caught signal, exiting");
+    close(listen_fd);
+    unlink(WRITE_PATH);
+    return 0;
 }
 
 void handle_signal(int signal) {
@@ -34,7 +65,7 @@ void handle_signal(int signal) {
 }
 
 // returns socket fd; -1 on error.
-int setup_socket(int port) {
+int setup_socket_listener(int port) {
     int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd == -1) {
         syslog(LOG_ERR, "socket: %s", STRERROR);
