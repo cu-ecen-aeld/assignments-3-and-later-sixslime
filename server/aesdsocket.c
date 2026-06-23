@@ -1,23 +1,18 @@
 // I used google and AI here pretty liberally. I'm a C# dev not a C dev.
 // It would be impractical to document every use, but I primarly would ask AI for things like "write a function that does X" or "how do I do Y, provide an example" and then write *my own* code, using the response/example as reference.
 // I did not just copy-and-paste.
-
 #include "aesdsocket.h"
 
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
-# define STRERROR = strerror(errno)
-
+#define STRERROR = strerror(errno)
 
 static volatile sig_atomic_t stop_signal = 0;
-
-
-
 
 int main(int argc, char *argv[]) {
     openlog(argv[0], NULL, LOG_USER);
 
-    // signal link:
+    // signal handling:
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
     sa.sa_handler = handle_signal;
@@ -29,12 +24,16 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    // setup listener:
     int listen_fd = setup_socket_listener(LISTEN_PORT);
     if (listen_fd == -1) {
         return -1;
     }
 
+    // loop until signal recieved:
     while (!stop_signal) {
+
+        // accept connection:
         struct sockaddr_in client_addr;
         socklen_t csocket_len = sizeof(client_addr);
         int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
@@ -43,23 +42,29 @@ int main(int argc, char *argv[]) {
             syslog(LOG_ERR, "accept: %s", STRERROR);
             continue;
         }
+        
+        // make readable ip:
         char ip_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
         syslog(LOG_INFO, "Accepted connection from %s", ip_str);
 
+        // main recieve and send:
         recv_to_file(client_fd, WRITE_PATH);
         send_from_file(client_fd, WRITE_PATH);
 
+        // close:
         close(client_fd);
         syslog(LOG_INFO, "Closed connection from %s", ip_str);
     }
 
+    // exit:
     syslog(LOG_INFO, "Caught signal, exiting");
     close(listen_fd);
     unlink(WRITE_PATH);
     return 0;
 }
 
+// set stop_signal to 1, let operations finish.
 void handle_signal(int signal) {
     stop_signal = 1;
 }
@@ -71,7 +76,6 @@ int setup_socket_listener(int port) {
         syslog(LOG_ERR, "socket: %s", STRERROR);
         return -1;
     }
-    // silly
     int opt = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
         syslog(LOG_ERR, "setsockopt: %s", STRERROR);
