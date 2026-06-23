@@ -82,7 +82,8 @@ int main(int argc, char *argv[])
     }
 
     // check for daemon flag:
-    while ((opt = getopt(argc, arcv, "d")) != -1) {
+    int opt;
+    while ((opt = getopt(argc, argv, "d")) != -1) {
         switch (opt) {
             case 'd':
                 close(listen_fd);
