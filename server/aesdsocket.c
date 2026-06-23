@@ -20,7 +20,6 @@ int main(int argc, char *argv[]) {
     if (sigaction(SIGINT,  &sa, NULL) == -1 ||
         sigaction(SIGTERM, &sa, NULL) == -1) {
         syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        closelog();
         return -1;
     }
 
@@ -31,7 +30,7 @@ int main(int argc, char *argv[]) {
     }
 
     // loop until signal recieved:
-    while (!stop_signal) {
+    while (stop_signal == 0) {
 
         // accept connection:
         struct sockaddr_in client_addr;
@@ -121,6 +120,7 @@ void recv_to_file(const char* file_path, int recv_fd) {
             syslog(LOG_ERR, "recv: %s", STRERROR);
             break;
         }
+        syslog(LOG_INFO, "writing: %s", buffer);
         // surely partial writes wont happen.
         if (write(write_fd, buffer, n_recieved) == -1) {
             syslog(LOG_ERR, "write %s: %s", file_path, STRERROR);
@@ -149,6 +149,7 @@ void send_from_file(const char* file_path, int send_fd) {
         ssize_t total_sent = 0;
         while (total_sent < n_read) {
             ssize_t n_sent = send(send_fd, buffer + total_sent, n_read - total_sent, MSG_NOSIGNAL);
+            syslog(LOG_INFO, "sending: %s", buffer);
             if (n_sent == -1) {
                 if (errno == EINTR) continue;
                 syslog(LOG_ERR, "send: %s", STRERROR);
