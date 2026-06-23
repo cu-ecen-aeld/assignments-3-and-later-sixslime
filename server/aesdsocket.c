@@ -10,7 +10,7 @@
 static volatile sig_atomic_t stop_signal = 0;
 
 int main(int argc, char *argv[]) {
-    openlog(argv[0], NULL, LOG_USER);
+    openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
 
     // signal handling:
     struct sigaction sa;
