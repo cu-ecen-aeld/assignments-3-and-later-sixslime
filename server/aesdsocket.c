@@ -100,10 +100,32 @@ int setup_socket_listener(int port) {
     return socket_fd;
 }
 
+void recv_to_file(const char* file_path, int recv_fd) {
+    int read_fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (read_fd == -1) {
+        syslog(LOG_ERR, "opening %s: %s", file_path, STRERROR);
+        return;
+    }
+    char buffer[4096];
+    char buf[4096];
+    ssize_t n;
+    for (;;) {
+        n = recv(connfd, buf, sizeof(buf), 0);
+        if (n == 0) break;
+        if (n == -1) {
+            if (errno == EINTR) continue;
+            syslog(LOG_ERR, "recv: %s", STRERROR);
+            break;
+        }
+        // surely partial writes wont happen.
+        if (write(fd, buf, n) == -1) {
+            syslog(LOG_ERR, "write %s: %s", path, STRERROR);
+        }
+    }
+    close(read_fd);
+}
+
 void send_from_file(const char* file_path, int send_fd) {
 
 }
 
-void recv_to_file(const char* file_path, int recv_fd) {
-
-}
