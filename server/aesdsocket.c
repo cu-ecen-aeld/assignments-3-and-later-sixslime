@@ -49,8 +49,8 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Accepted connection from %s", ip_str);
 
         // main recieve and send:
-        recv_to_file(client_fd, WRITE_PATH);
-        send_from_file(client_fd, WRITE_PATH);
+        recv_to_file(WRITE_PATH, client_fd);
+        send_from_file(WRITE_PATH, client_fd);
 
         // close:
         close(client_fd);
@@ -66,6 +66,7 @@ int main(int argc, char *argv[]) {
 
 // set stop_signal to 1, let operations finish.
 void handle_signal(int signal) {
+    (void)signal;
     stop_signal = 1;
 }
 
@@ -77,7 +78,7 @@ int setup_socket_listener(int port) {
         return -1;
     }
     int opt = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
+    if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
         syslog(LOG_ERR, "setsockopt: %s", STRERROR);
         close(socket_fd);
         return -1;
@@ -90,13 +91,13 @@ int setup_socket_listener(int port) {
     addr.sin_port = htons((uint16_t)port);
 
     if (bind(socket_fd, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
-        syslog(LOG_ERR, "bind: %s", STRERROR)
+        syslog(LOG_ERR, "bind: %s", STRERROR);
         close(socket_fd);
         return -1;
     }
 
     if (listen(socket_fd, SOMAXCONN) == -1) {
-        syslog(LOG_ERR, "listen: %s", STRERROR)
+        syslog(LOG_ERR, "listen: %s", STRERROR);
         close(socket_fd);
         return -1;
     }
@@ -113,7 +114,7 @@ void recv_to_file(const char* file_path, int recv_fd) {
     char buffer[4096];
     ssize_t n_recieved;
     for (;;) {
-        n_recieved = recv(recv_fd, buffer, sizeof(buf), 0);
+        n_recieved = recv(recv_fd, buffer, sizeof(buffer), 0);
         if (n_recieved == 0) break;
         if (n_recieved == -1) {
             if (errno == EINTR) continue;
@@ -129,7 +130,7 @@ void recv_to_file(const char* file_path, int recv_fd) {
 }
 
 void send_from_file(const char* file_path, int send_fd) {
-    int read_fd = open(path, O_RDONLY);
+    int read_fd = open(file_path, O_RDONLY);
     if (read_fd == -1) {
         syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
         return;
@@ -142,7 +143,7 @@ void send_from_file(const char* file_path, int send_fd) {
         if (n_read == 0) break;
         if (n_read == -1) {
             if (errno == EINTR) continue;
-            syslog(LOG_ERR, "read %s: %s", path, STRERROR);
+            syslog(LOG_ERR, "read %s: %s", file_path, STRERROR);
             break;
         }
         ssize_t total_sent = 0;
