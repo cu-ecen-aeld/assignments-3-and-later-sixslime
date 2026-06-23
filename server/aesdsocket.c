@@ -101,31 +101,58 @@ int setup_socket_listener(int port) {
 }
 
 void recv_to_file(const char* file_path, int recv_fd) {
-    int read_fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-    if (read_fd == -1) {
+    int write_fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (write_fd == -1) {
         syslog(LOG_ERR, "opening %s: %s", file_path, STRERROR);
         return;
     }
     char buffer[4096];
-    char buf[4096];
-    ssize_t n;
+    ssize_t n_recieved;
     for (;;) {
-        n = recv(connfd, buf, sizeof(buf), 0);
-        if (n == 0) break;
-        if (n == -1) {
+        n_recieved = recv(recv_fd, buffer, sizeof(buf), 0);
+        if (n_recieved == 0) break;
+        if (n_recieved == -1) {
             if (errno == EINTR) continue;
             syslog(LOG_ERR, "recv: %s", STRERROR);
             break;
         }
         // surely partial writes wont happen.
-        if (write(fd, buf, n) == -1) {
-            syslog(LOG_ERR, "write %s: %s", path, STRERROR);
+        if (write(write_fd, buffer, n_recieved) == -1) {
+            syslog(LOG_ERR, "write %s: %s", file_path, STRERROR);
         }
     }
-    close(read_fd);
+    close(write_fd);
 }
 
 void send_from_file(const char* file_path, int send_fd) {
+    int read_fd = open(path, O_RDONLY);
+    if (read_fd == -1) {
+        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
+        return;
+    }
 
+    char buffer[65536];
+    ssize_t n_read;
+    for (;;) {
+        n_read = read(read_fd, buffer, sizeof(buffer));
+        if (n_read == 0) break;
+        if (n_read == -1) {
+            if (errno == EINTR) continue;
+            syslog(LOG_ERR, "read %s: %s", path, STRERROR);
+            break;
+        }
+        ssize_t total_sent = 0;
+        while (total_sent < n_read) {
+            ssize_t n_sent = send(send_fd, buffer + total_sent, n_read - total_sent, MSG_NOSIGNAL);
+            if (n_sent == -1) {
+                if (errno == EINTR) continue;
+                syslog(LOG_ERR, "send: %s", STRERROR);
+                goto done;
+            }
+            total_sent += n_sent;
+        }
+    }
+done:
+    close(read_fd);
 }
 
