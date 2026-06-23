@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Accepted connection from %s", ip_str);
 
         // main recieve and send:
-        recv_to_file(WRITE_PATH, listen_fd);
+        recv_to_file(WRITE_PATH, client_fd);
         send_from_file(WRITE_PATH, client_fd);
 
         // close:
