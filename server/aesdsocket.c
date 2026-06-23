@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Accepted connection from %s", ip_str);
 
         // main recieve and send:
-        recv_to_file(WRITE_PATH, client_fd);
+        recv_to_file(WRITE_PATH, listen_fd);
         send_from_file(WRITE_PATH, client_fd);
 
         // close:
@@ -105,7 +105,7 @@ int setup_socket_listener(int port) {
 }
 
 void recv_to_file(const char* file_path, int recv_fd) {
-    int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int write_fd = open(file_path, O_RDWR | O_CREAT | O_APPEND, 0644);
     if (write_fd == -1) {
         syslog(LOG_ERR, "opening %s: %s", file_path, STRERROR);
         return;
