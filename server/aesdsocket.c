@@ -5,7 +5,7 @@
 
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
-#define STRERROR STRERROR
+#define STRERROR strerror(errno)
 
 static volatile sig_atomic_t stop_signal = 0;
 
