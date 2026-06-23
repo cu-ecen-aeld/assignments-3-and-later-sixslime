@@ -15,3 +15,7 @@
 void handle_signal(int signal);
 
 int setup_listener(int port);
+
+void send_from_file(const char* file_path, int send_fd);
+
+void recv_to_file(const char* file_path, int recv_fd);
