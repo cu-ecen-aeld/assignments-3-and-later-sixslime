@@ -5,7 +5,7 @@
 
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
-#define STRERROR = strerror(errno)
+#define STRERROR strerror(errno)
 
 static volatile sig_atomic_t stop_signal = 0;
 
@@ -105,7 +105,7 @@ int setup_socket_listener(int port) {
 }
 
 void recv_to_file(const char* file_path, int recv_fd) {
-    int write_fd = open(path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (write_fd == -1) {
         syslog(LOG_ERR, "opening %s: %s", file_path, STRERROR);
         return;
