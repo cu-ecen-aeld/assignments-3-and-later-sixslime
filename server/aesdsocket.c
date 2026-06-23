@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Accepted connection from %s", ip_str);
 
         // main recieve and send:
-        recv_send_file(WRITE_FILE, client_fd);
+        recv_send_file(WRITE_PATH, client_fd);
 
         // close:
         close(client_fd);
@@ -184,8 +184,8 @@ int send_all(int socket_fd, const void *buffer, size_t len)
     size_t off = 0;
 
     while (off < len) {
-        ssize_t n_set = send(socket_fd, pbuf + off, len - off, 0);
-        if (n_set < 0) {
+        ssize_t n_sent = send(socket_fd, pbuf + off, len - off, 0);
+        if (n_sent < 0) {
             syslog(LOG_ERR, "send: %s", STRERROR);
             return -1;
         }
