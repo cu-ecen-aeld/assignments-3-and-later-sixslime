@@ -141,7 +141,7 @@ void recv_send_file(const char *file_path, int socket_fd)
             line[line_len++] = c;
 
             if (c == '\n') {
-                int write_fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if (write_fd == -1) {
                     syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
                     goto out;
