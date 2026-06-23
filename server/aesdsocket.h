@@ -16,6 +16,11 @@ void handle_signal(int signal);
 
 int setup_socket_listener(int port);
 
-void send_from_file(const char* file_path, int send_fd);
+void recv_send_file(const char *file_path, int socket_fd);
 
-void recv_to_file(const char* file_path, int recv_fd);
+static int write_all(int fd, const void *buf, size_t len);
+
+static int send_all(int sockfd, const void *buf, size_t len);
+
+static int send_file_back(const char *file_path, int socket_fd);
+
