@@ -11,3 +11,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+void handle_signal(int signal);
+
+int setup_listener(int port);
