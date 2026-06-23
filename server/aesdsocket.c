@@ -5,7 +5,7 @@
 
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
-#define STRERROR strerror(errno)
+#define STRERROR STRERROR
 
 static volatile sig_atomic_t stop_signal = 0;
 
@@ -112,26 +112,43 @@ void recv_send_file(const char *file_path, int socket_fd)
     char buffer[4096];
 
     for (;;) {
-        ssize_t n_recieved = recv(socket_fd, buffer, sizeof buffer, 0);
-        if (n_recieved < 0) {
+        ssize_t n_received = recv(socket_fd, buffer, sizeof buffer, 0);
+        if (n_received < 0) {
             syslog(LOG_ERR, "recv: %s", STRERROR);
             break;
         }
-        if (n_recieved == 0) {
-            break; 
+        if (n_received == 0) {
+            break;
         }
-        for (ssize_t i = 0; i < n_recieved; i++) {
+
+        for (ssize_t i = 0; i < n_received; i++) {
             char c = buffer[i];
+
+            if (line_len + 1 > line_cap) {
+                size_t new_cap = (line_cap == 0) ? 1024 : line_cap * 2;
+                while (new_cap < line_len + 1) new_cap *= 2;
+
+                char *tmp = realloc(line, new_cap);
+                if (!tmp) {
+                    syslog(LOG_ERR, "realloc: %s", STRERROR);
+                    goto out;
+                }
+
+                line = tmp;
+                line_cap = new_cap;
+            }
+
             line[line_len++] = c;
 
             if (c == '\n') {
                 int write_fd = open(file_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
                 if (write_fd == -1) {
-                    syslog(LOG_ERR, "open %s, %s", file_path, STRERROR);
+                    syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
                     goto out;
                 }
 
-                if (line_len > 0 && write_all(write_fd, line, line_len) < 0) {
+                if (write_all(write_fd, line, line_len) < 0) {
+                    syslog(LOG_ERR, "write: %s", STRERROR);
                     close(write_fd);
                     goto out;
                 }
@@ -139,21 +156,11 @@ void recv_send_file(const char *file_path, int socket_fd)
                 close(write_fd);
 
                 if (send_file_back(file_path, socket_fd) < 0) {
+                    syslog(LOG_ERR, "send_file_back: %s", STRERROR);
                     goto out;
                 }
 
-                line_len = 0; 
-            } else {
-                if (line_len + 1 > line_cap) {
-                    size_t new_cap = (line_cap == 0) ? 1024 : line_cap * 2;
-                    while (new_cap < line_len + 1) new_cap *= 2;
-
-                    char *tmp = realloc(line, new_cap);
-                    if (!tmp) goto out;
-
-                    line = tmp;
-                    line_cap = new_cap;
-                }
+                line_len = 0;
             }
         }
     }
