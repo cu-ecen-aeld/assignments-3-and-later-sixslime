@@ -6,7 +6,7 @@ static volatile sig_atomic_t stop_signal = 0;
 struct thread_entry {
     thread_t thread;
     SLIST_ENTRY(thread_entry) entries;
-}
+};
 
 int main(int argc, char *argv[])
 {
