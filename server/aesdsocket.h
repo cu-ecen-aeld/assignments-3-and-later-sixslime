@@ -12,6 +12,8 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <queue.h>
 
 void handle_signal(int signal);
 
+void start_thread(pthread_mutex_t* mutex);
