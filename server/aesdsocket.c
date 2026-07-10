@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
     // init slist:
     SLIST_HEAD(thread_slist, thread_entry);
     struct thread_slist slist_head;
-    SLIST_INIT(slist_head);
+    SLIST_INIT(&slist_head);
 
     // loop until signal recieved:
     while (stop_signal == 0) {
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
         SLIST_INSERT_HEAD(&slist_head, entry, entries);
     }
     // join and free threads:
-    struct thread_entry* np, 
+    struct thread_entry* np;
     while (!SLIST_EMPTY(&slist_head)) {
         np = SLIST_FIRST(&slist_head);
         if (pthread_join(np->value, NULL) != 0) {
