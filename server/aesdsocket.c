@@ -53,7 +53,7 @@ struct worker_args {
     int client_fd;
     pthread_mutex_t* write_mutex;
     // this is *shitty*.
-    char* ip_str[];
+    char* ip_str;
 };
 
 static void* thread_work(void* arg) {
@@ -93,8 +93,12 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
     args->write_mutex = write_mutex;
     args->client_fd = client_fd;
     // what are we doing !??
-    args->ip_str = malloc(sizeof(ip_str));
-    memcpy(args->ip_str, ip_str, sizeof(ip_str));
+    args->ip_str = malloc(strlen(ip_str) + 1);
+    if (args->ip_str == NULL) {
+        syslog(LOG_ERR, "malloc ip_str: %s", STRERROR);
+        return 1;
+    }
+    strcpy(args->ip_str, ip_str);
 
     // create thread:
     if (pthread_create(pthread_id, NULL, thread_work, args) != 0) {
