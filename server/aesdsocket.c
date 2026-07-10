@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
 struct worker_args {
     int client_fd;
     pthread_mutex_t* write_mutex;
-    // yea man whatever just pass the whole thing.
-    char ip_str[];
+    // this is *shitty*.
+    char* ip_str[];
 };
 
 static void* thread_work(void* arg) {
@@ -62,6 +62,7 @@ static void* thread_work(void* arg) {
     close(args->client_fd);
     syslog(LOG_INFO, "Closed connection from %s", args->ip_str);
 
+    free(args->ip_str);
     free(args);
     return NULL;
 }
@@ -91,7 +92,9 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
     }
     args->write_mutex = write_mutex;
     args->client_fd = client_fd;
-    args->ip_str = ip_str;
+    // what are we doing !??
+    args->ip_str = malloc(sizeof(ip_str));
+    memcpy(args->ip_str, ip_str, sizeof(ip_str));
 
     // create thread:
     if (pthread_create(pthread_id, NULL, thread_work, args) != 0) {
