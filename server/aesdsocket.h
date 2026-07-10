@@ -1,3 +1,4 @@
+#include "prev.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,16 +14,4 @@
 #include <arpa/inet.h>
 
 void handle_signal(int signal);
-
-int daemonize(void);
-
-int setup_socket_listener(int port);
-
-void recv_send_file(const char *file_path, int socket_fd);
-
-static int write_all(int fd, const void *buf, size_t len);
-
-static int send_all(int sockfd, const void *buf, size_t len);
-
-static int send_file_back(const char *file_path, int socket_fd);
 
