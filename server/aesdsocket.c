@@ -4,7 +4,7 @@
 static volatile sig_atomic_t stop_signal = 0;
 
 struct thread_entry {
-    thread_t thread;
+    pthread_t thread;
     SLIST_ENTRY(thread_entry) entries;
 };
 
