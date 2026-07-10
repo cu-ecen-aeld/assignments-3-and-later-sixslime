@@ -1,23 +1,10 @@
+#include "std_includes.h"
 #include "prev.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <errno.h>
-#include <signal.h>
-#include <syslog.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/queue.h>
 
 void handle_signal(int signal);
-
-void start_thread(pthread_mutex_t* mutex);
 
 int init_program(int argc, char* argv[], int* listen_fd);
 
 int exit_program(int listen_fd);
+
+int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex);
