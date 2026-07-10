@@ -52,13 +52,15 @@ int main(int argc, char *argv[])
 struct worker_args {
     int client_fd;
     pthread_mutex_t* write_mutex;
+    // yea man whatever just pass the whole thing.
+    char ip_str[];
 };
 
 static void* thread_work(void* arg) {
     struct worker_args* args = (struct worker_args*)arg;
     recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
     close(args->client_fd);
-    syslog(LOG_INFO, "Closed connection from %s", ip_str);
+    syslog(LOG_INFO, "Closed connection from %s", args->ip_str);
 
     free(args);
     return NULL;
@@ -87,6 +89,9 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
         syslog(LOG_ERR, "malloc worker args: %s", STRERROR);
         return 1;
     }
+    args->write_mutex = write_mutex;
+    args->client_fd = client_fd;
+    args->ip_str = ip_str;
 
     // create thread:
     if (pthread_create(pthread_id, NULL, thread_work, args) != 0) {
