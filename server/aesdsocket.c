@@ -8,43 +8,6 @@ struct thread_entry {
     SLIST_ENTRY(thread_entry) entries;
 }
 
-int main(int argc, char *argv[])
-{
-    int listen_fd;
-    int init_r = init_program(argc, argv, &listen_fd);
-    if (init_r != 0) {
-        return r;
-    }
-
-    // loop until signal recieved:
-    while (stop_signal == 0) {
-
-        // accept connection:
-        struct sockaddr_in client_addr;
-        socklen_t csocket_len = sizeof(client_addr);
-        int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
-        if (client_fd == -1) {
-            if (errno == EINTR) continue;
-            syslog(LOG_ERR, "accept: %s", STRERROR);
-            continue;
-        }
-        
-        // make readable ip:
-        char ip_str[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
-        syslog(LOG_INFO, "Accepted connection from %s", ip_str);
-
-        // main recieve and send:
-        recv_send_file(WRITE_PATH, client_fd);
-
-        // close:
-        close(client_fd);
-        syslog(LOG_INFO, "Closed connection from %s", ip_str);
-    }
-    
-    return exit_program(listen_fd)
-}
-
 static int init_program(int argc, char *argv[], int* listen_fd) {
     openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
 
@@ -90,6 +53,44 @@ static int exit_program(int listen_fd) {
     unlink(WRITE_PATH);
     return 0;
 }
+
+int main(int argc, char *argv[])
+{
+    int listen_fd;
+    int init_r = init_program(argc, argv, &listen_fd);
+    if (init_r != 0) {
+        return r;
+    }
+
+    // loop until signal recieved:
+    while (stop_signal == 0) {
+
+        // accept connection:
+        struct sockaddr_in client_addr;
+        socklen_t csocket_len = sizeof(client_addr);
+        int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
+        if (client_fd == -1) {
+            if (errno == EINTR) continue;
+            syslog(LOG_ERR, "accept: %s", STRERROR);
+            continue;
+        }
+        
+        // make readable ip:
+        char ip_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
+        syslog(LOG_INFO, "Accepted connection from %s", ip_str);
+
+        // main recieve and send:
+        recv_send_file(WRITE_PATH, client_fd);
+
+        // close:
+        close(client_fd);
+        syslog(LOG_INFO, "Closed connection from %s", ip_str);
+    }
+
+    return exit_program(listen_fd)
+}
+
 // set stop_signal to 1, let operations finish.
 void handle_signal(int signal) 
 {
