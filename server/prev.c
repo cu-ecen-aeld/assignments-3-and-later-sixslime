@@ -1,6 +1,6 @@
 #include "prev.h"
 
-void recv_send_file(const char *file_path, int socket_fd)
+void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write_mutex)
 {
     char *line = NULL;
     size_t line_len = 0;
@@ -38,19 +38,25 @@ void recv_send_file(const char *file_path, int socket_fd)
             line[line_len++] = c;
 
             if (c == '\n') {
+                // lock:
+                pthread_mutex_lock(write_mutex);
                 int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if (write_fd == -1) {
                     syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
+                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
 
                 if (write_all(write_fd, line, line_len) < 0) {
                     syslog(LOG_ERR, "write: %s", STRERROR);
                     close(write_fd);
+                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
-
                 close(write_fd);
+
+                // last unlock:
+                pthread_mutex_unlock(write_mutex);
 
                 if (send_file_back(file_path, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);

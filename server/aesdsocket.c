@@ -1,6 +1,7 @@
 #include "aesdsocket.h"
 
 static volatile sig_atomic_t stop_signal = 0;
+static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct thread_entry {
     pthread_t value;
@@ -14,8 +15,6 @@ int main(int argc, char *argv[])
     if (init_r != 0) {
         return init_r;
     }
-    // mutex:
-    pthread_mutex_t write_mutex;
 
     // init slist:
     SLIST_HEAD(thread_slist, thread_entry);
