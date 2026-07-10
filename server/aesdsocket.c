@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
         syslog(LOG_INFO, "Closed connection from %s", ip_str);
     }
 
-    return exit_program(listen_fd)
+    return exit_program(listen_fd);
 }
 
 // set stop_signal to 1, let operations finish.
