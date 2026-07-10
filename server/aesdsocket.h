@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <queue.h>
+#include <sys/queue.h>
 
 void handle_signal(int signal);
 
