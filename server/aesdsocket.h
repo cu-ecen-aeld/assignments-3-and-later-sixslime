@@ -17,3 +17,7 @@
 void handle_signal(int signal);
 
 void start_thread(pthread_mutex_t* mutex);
+
+int init_program(int argc, char* argv[], int* listen_fd);
+
+int exit_program(int listen_fd);

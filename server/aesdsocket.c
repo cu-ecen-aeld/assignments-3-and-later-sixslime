@@ -8,58 +8,12 @@ struct thread_entry {
     SLIST_ENTRY(thread_entry) entries;
 }
 
-static int init_program(int argc, char *argv[], int* listen_fd) {
-    openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
-
-    // try setup listener:
-    *listen_fd = setup_socket_listener(LISTEN_PORT);
-    if (*listen_fd == -1) {
-        return -1;
-    }
-
-    // daemonize if flag found:
-    int opt;
-    while ((opt = getopt(argc, argv, "d")) != -1) {
-        switch (opt) {
-            case 'd':
-                if (daemonize() == -1) {
-                    close(*listen_fd);
-                    return -1;
-                }
-                break;
-            default:
-                abort();
-                break;
-        }
-    }
-
-    // signal handling:
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = handle_signal;
-    sigemptyset(&sa.sa_mask);
-    if (sigaction(SIGINT,  &sa, NULL) == -1 ||
-        sigaction(SIGTERM, &sa, NULL) == -1) {
-        syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        return -1;
-    }
-    return 0;
-}
-
-static int exit_program(int listen_fd) {
-    // exit:
-    syslog(LOG_INFO, "Caught signal, exiting");
-    close(listen_fd);
-    unlink(WRITE_PATH);
-    return 0;
-}
-
 int main(int argc, char *argv[])
 {
     int listen_fd;
     int init_r = init_program(argc, argv, &listen_fd);
     if (init_r != 0) {
-        return r;
+        return init_r;
     }
 
     // loop until signal recieved:
@@ -98,3 +52,47 @@ void handle_signal(int signal)
     stop_signal = 1;
 }
 
+int init_program(int argc, char *argv[], int* listen_fd) {
+    openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
+
+    // try setup listener:
+    *listen_fd = setup_socket_listener(LISTEN_PORT);
+    if (*listen_fd == -1) {
+        return -1;
+    }
+
+    // daemonize if flag found:
+    int opt;
+    while ((opt = getopt(argc, argv, "d")) != -1) {
+        switch (opt) {
+            case 'd':
+                if (daemonize() == -1) {
+                    close(*listen_fd);
+                    return -1;
+                }
+                break;
+            default:
+                abort();
+                break;
+        }
+    }
+
+    // signal handling:
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = handle_signal;
+    sigemptyset(&sa.sa_mask);
+    if (sigaction(SIGINT,  &sa, NULL) == -1 ||
+        sigaction(SIGTERM, &sa, NULL) == -1) {
+        syslog(LOG_ERR, "sigaction: %s", STRERROR);
+        return -1;
+    }
+    return 0;
+}
+
+int exit_program(int listen_fd) {
+    syslog(LOG_INFO, "Caught signal, exiting");
+    close(listen_fd);
+    unlink(WRITE_PATH);
+    return 0;
+}
