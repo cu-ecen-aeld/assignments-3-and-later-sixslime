@@ -62,7 +62,7 @@ int init_program(int argc, char *argv[], int* listen_fd) {
     }
 
     // start timer:
-    struct itemerval timer = {
+    struct itimerval timer = {
         .it_value = {
             .tv_sec = TIMER_INTERVAL_SECONDS,
             .tv_usec = 0,
