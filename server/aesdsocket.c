@@ -238,9 +238,7 @@ static void* accept_connection_worker(void* arg) {
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
     syslog(LOG_INFO, "Accepted connection from %s", ip_str);
     
-    if (recv_send_file(WRITE_PATH, client_fd, args->write_mutex) != 0) {
-        syslog(LOG_ERR, "recv_send_file errored");
-    }
+    recv_send_file(WRITE_PATH, client_fd, args->write_mutex);
     close(client_fd);
     syslog(LOG_INFO, "Closed connection from %s", ip_str);
 
