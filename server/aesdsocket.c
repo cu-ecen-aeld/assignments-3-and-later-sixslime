@@ -209,13 +209,14 @@ int connection_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_
 
 struct accept_connection_args {
     pthread_mutex_t* write_mutex;
+    int listen_fd;
 };
 static void* accept_connection_worker(void* arg) {
     struct accept_connection_args* args = (struct accept_connection_args*)arg;
     // accept:
     struct sockaddr_in client_addr;
     socklen_t csocket_len = sizeof(client_addr);
-    int client_fd = accept(listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
+    int client_fd = accept(args->listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
     if (client_fd == -1) {
         if (errno == EINTR) return 1;
         syslog(LOG_ERR, "accept: %s", STRERROR);
@@ -242,6 +243,7 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
         return 1;
     }
     args->write_mutex = write_mutex;
+    args->listen_fd = listen_fd;
     // create worker:
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
