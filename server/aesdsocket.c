@@ -61,6 +61,17 @@ int init_program(int argc, char *argv[], int* listen_fd) {
         }
     }
 
+    // setup signal blocking:
+    sigset_t blocked;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGALRM);
+    sigaddset(&blocked, SIGINT);
+    sigaddset(&blocked, SIGTERM);
+    if ((errno = pthread_sigmask(SIG_BLOCK, &blocked, NULL)) != 0) {
+        syslog(LOG_ERR, "pthread_sigmask: %s", STRERROR);
+        return -1;
+    }
+
     // start timer:
     struct itimerval timer = {
         .it_value = {
@@ -227,7 +238,9 @@ static void* accept_connection_worker(void* arg) {
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
     syslog(LOG_INFO, "Accepted connection from %s", ip_str);
     
-    recv_send_file(WRITE_PATH, client_fd, args->write_mutex);
+    if (recv_send_file(WRITE_PATH, client_fd, args->write_mutex) != 0) {
+        syslog(LOG_ERR, "recv_send_file errored");
+    }
     close(client_fd);
     syslog(LOG_INFO, "Closed connection from %s", ip_str);
 
@@ -265,6 +278,7 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
     size_t str_len = strftime(buffer, sizeof(buffer), "timestamp:%a, %d, %b, %Y, %H:%M:%S %z\n", &tm_info);
     if (str_len == 0) {
         syslog(LOG_ERR, "strftime failed");
+        pthread_mutex_unlock(write_mutex);
         return;
     }
     // write:
