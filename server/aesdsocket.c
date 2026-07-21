@@ -13,11 +13,25 @@ static pthread_mutex_t write_mutex_global = PTHREAD_MUTEX_INITIALIZER;
 int main(int argc, char *argv[])
 {
     int listen_fd;
-    int init_r = init_program(argc, argv, &listen_fd);
-    if (init_r != 0) {
-        return init_r;
+    int r = init_program(argc, argv, &listen_fd);
+    if (r != 0) {
+        return r;
+    }
+    pthread_t signal_listener_thread, connection_listener_thread;
+    if (signal_listener_on_thread(&signal_listener_thread, &write_mutex_global) != 0) {
+        goto exit;
+    }
+    if (connection_listener_on_thread(&connection_listener_thread, &write_mutex_global, listen_fd, POLL_MS) != 0) {
+        goto exit;
     }
 
+    if (pthread_join(signal_listener_thread, NULL) != 0) {
+        syslog(LOG_ERR, "pthread_join: %s", STRERROR);
+    }
+    if (pthread_join(connection_listener_thread, NULL) != 0) {
+        syslog(LOG_ERR, "pthread_join: %s", STRERROR);
+    }
+    exit:
     return exit_program(listen_fd);
 }
 
@@ -91,8 +105,7 @@ static void* signal_listener_worker(void* arg) {
             continue;
         }
         // SIGINT or SIGTERM:
-        atomic_store(&stop_signal, 1);
-        break;
+        on_sigint();
     }
 
     free(args);
@@ -251,7 +264,33 @@ int exit_program(int listen_fd) {
 }
 
 void on_sigalrm(pthread_mutex_t* write_mutex) {
+    char buffer[128];
+    // acquire lock before getting time probably good no?
+    pthread_mutex_lock(write_mutex);
+    time_t now = time(NULL);
+    struct tm tm_info;
+    localtime_r(&now, &tm_info);
+    size_t str_len = strftime(&buffer, sizeof(buffer), "timestamp:%a, %d, %b, %Y, %H:%M:%S %z\n", &tm_info);
+    if (str_len == 0) {
+        syslog(LOG_ERR, "strftime failed");
+        continue;
+    }
+    // write:
+    int write_fd = open(WRITE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
+    if (write_fd == -1) {
+        syslog(LOG_ERR, "open %s: %s", WRITE_PATH, STRERROR);
+        pthread_mutex_unlock(write_mutex);
+        continue;
+    }
 
+    if (write_all(write_fd, &buffer, str_len) < 0) {
+        syslog(LOG_ERR, "write: %s", STRERROR);
+        close(write_fd);
+        pthread_mutex_unlock(write_mutex);
+        continue;
+    }
+    close(write_fd);
+    pthread_mutex_unlock(write_mutex);
 }
 
 void on_sigint() {
