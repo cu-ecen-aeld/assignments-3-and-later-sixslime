@@ -79,6 +79,14 @@ int init_program(int argc, char *argv[], int* listen_fd) {
     
     return 0;
 }
+int exit_program(int listen_fd) {
+    struct itimerval timeroff = {0};
+    setitimer(ITIMER_REAL, &timeroff, NULL);
+    syslog(LOG_INFO, "Caught signal, exiting");
+    close(listen_fd);
+    unlink(WRITE_PATH);
+    return 0;
+}
 
 struct signal_listener_args {
     pthread_mutex_t* write_mutex;
@@ -249,17 +257,9 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
         free(args);
+        free(args-ip_str);
         return 1;
     }
-    return 0;
-}
-
-int exit_program(int listen_fd) {
-    struct itimerval timeroff = {0};
-    setitimer(ITIMER_REAL, &timeroff, NULL);
-    syslog(LOG_INFO, "Caught signal, exiting");
-    close(listen_fd);
-    unlink(WRITE_PATH);
     return 0;
 }
 
