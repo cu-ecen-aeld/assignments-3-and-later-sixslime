@@ -208,7 +208,6 @@ int connection_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_
 }
 
 struct accept_connection_args {
-    int client_fd;
     pthread_mutex_t* write_mutex;
 };
 static void* accept_connection_worker(void* arg) {
@@ -227,8 +226,8 @@ static void* accept_connection_worker(void* arg) {
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
     syslog(LOG_INFO, "Accepted connection from %s", ip_str);
     
-    recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
-    close(args->client_fd);
+    recv_send_file(WRITE_PATH, client_fd, write_mutex);
+    close(client_fd);
     syslog(LOG_INFO, "Closed connection from %s", ip_str);
 
     free(args);
@@ -243,7 +242,6 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
         return 1;
     }
     args->write_mutex = write_mutex;
-    args->client_fd = client_fd;
     // create worker:
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
