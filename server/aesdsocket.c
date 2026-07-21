@@ -9,7 +9,7 @@
 
 static volatile sig_atomic_t stop_signal = 0;
 static volatile sig_atomic_t timer_signal = 0;
-static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t write_mutex_global = PTHREAD_MUTEX_INITIALIZER;
 
 struct thread_entry {
     pthread_t value;
