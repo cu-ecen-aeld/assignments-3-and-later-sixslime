@@ -157,7 +157,7 @@ static void* connection_listener_worker(void* arg) {
         }
         // create connection thread:
         pthread_t connection_pthread;
-        if (accept_connection_on_thread(args->listen_fd, &connection_pthread, args->write_mutex) != 0) {
+        if (accept_connection_on_thread(&connection_pthread, args->write_mutex, args->listen_fd) != 0) {
             syslog(LOG_WARNING, "connection not accepted.");
             continue;
         }
