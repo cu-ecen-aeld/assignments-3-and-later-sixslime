@@ -164,16 +164,16 @@ static void* connection_listener_worker(void* arg) {
     struct thread_slist slist_head;
     SLIST_INIT(&slist_head);
 
-    struct pollfd poll_args = { .fd = args->listen_fd, .events = POLLIN };
+    struct pollfd poll_handle = { .fd = args->listen_fd, .events = POLLIN };
 
     while (atomic_load(&stop_signal) == 0) {
         // poll:
-        int poll_r = poll(&poll_args, 1, args->poll_ms);
-        if (poll_r == 0) { continue; }
+        int poll_r = poll(&poll_handle, 1, args->poll_ms);
         if (poll_r == -1) {
             syslog(LOG_ERR, "poll: %s", STRERROR);
             continue;
         }
+        if (poll_r == 0 || !(poll_handle.revents & POLLIN)) { continue; }
         // create connection thread:
         pthread_t connection_pthread;
         if (accept_connection_on_thread(&connection_pthread, args->write_mutex, args->listen_fd) != 0) {
@@ -270,7 +270,6 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
     char buffer[128];
     // acquire lock before getting time probably good no?
     pthread_mutex_lock(write_mutex);
-    syslog(LOG_INFO, "got lock");
     time_t now = time(NULL);
     struct tm tm_info;
     localtime_r(&now, &tm_info);
@@ -280,6 +279,7 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
         pthread_mutex_unlock(write_mutex);
         return;
     }
+    syslog(LOG_INFO, "TIMER: %s", buffer);
     // write:
     int write_fd = open(WRITE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (write_fd == -1) {
@@ -288,7 +288,7 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
         return;
     }
     if (write_all(write_fd, &buffer, str_len) < 0) {
-        syslog(LOG_ERR, "TIMER: %s", STRERROR);
+        syslog(LOG_ERR, "write: %s", STRERROR);
         close(write_fd);
         pthread_mutex_unlock(write_mutex);
         return;
