@@ -7,14 +7,8 @@
 
 #include "aesdsocket.h"
 
-static volatile sig_atomic_t stop_signal = 0;
-static volatile sig_atomic_t timer_signal = 0;
+static atomic_int stop_signal = 0;
 static pthread_mutex_t write_mutex_global = PTHREAD_MUTEX_INITIALIZER;
-
-struct thread_entry {
-    pthread_t value;
-    SLIST_ENTRY(thread_entry) entries;
-};
 
 int main(int argc, char *argv[])
 {
@@ -24,13 +18,6 @@ int main(int argc, char *argv[])
         return init_r;
     }
     
-    // start timer:
-    struct itimerval timer;
-    timer.it_value.tv_sec = TIMER_INTERVAL_SECONDS;
-    timer.it_value.tv_usec = 0;
-    timer.it_interval.tv_sec = TIMER_INTERVAL_SECONDS;
-    timer.it_interval.tv_usec = 0;
-    if (setitimer(ITIMER_REAL, &timer, NULL))
     // init slist:
     SLIST_HEAD(thread_slist, thread_entry);
     struct thread_slist slist_head;
@@ -63,15 +50,85 @@ int main(int argc, char *argv[])
     return exit_program(listen_fd);
 }
 
-struct worker_args {
+
+int init_program(int argc, char *argv[], int* listen_fd) {
+    openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
+
+    // try setup listener:
+    *listen_fd = setup_socket_listener(LISTEN_PORT);
+    if (*listen_fd == -1) {
+        return -1;
+    }
+
+    // daemonize if flag found:
+    int opt;
+    while ((opt = getopt(argc, argv, "d")) != -1) {
+        switch (opt) {
+            case 'd':
+                if (daemonize() == -1) {
+                    close(*listen_fd);
+                    return -1;
+                }
+                break;
+            default:
+                abort();
+                break;
+        }
+    }
+
+    // start timer:
+    struct itemerval timer = {
+        .it_value = {
+            .tv_sec = TIMER_INTERVAL_SECONDS,
+            .tv_usec = 0,
+        },
+        .it_interval = {
+            .tv_sec = TIMER_INTERVAL_SECONDS,
+            .tv_usec = 0,
+        },
+    };
+    if (setitimer(ITIMER_REAL, &timer, NULL) != 0) {
+        syslog(LOG_ERR, "setitimer: %s", STRERROR);
+        return -1;
+    }
+    
+    return 0;
+}
+
+struct signal_listener_args {
+    pthread_mutex_t* write_mutex;
+};
+static void* signal_listener_worker(void* arg) {
+    struct signal_listener_args* args = (struct signal_listener_args*)arg;
+}
+int signal_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
+
+}
+
+struct thread_entry {
+    pthread_t value;
+    SLIST_ENTRY(thread_entry) entries;
+};
+struct connection_listener_args {
+    pthread_mutex_t* write_mutex;
+    int listen_fd;
+};
+static void* connection_listener_worker(void* arg) {
+    struct connection_listener_args* args = (struct connection_listener_args*)arg;
+}
+int connection_listener_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
+
+}
+
+struct accept_connection_args {
     int client_fd;
     pthread_mutex_t* write_mutex;
     // this is *shitty*.
     char* ip_str;
 };
 
-static void* connection_worker(void* arg) {
-    struct worker_args* args = (struct worker_args*)arg;
+static void* accept_connection_worker(void* arg) {
+    struct accept_connection_args* args = (struct accept_connection_args*)arg;
     recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
     close(args->client_fd);
     syslog(LOG_INFO, "Closed connection from %s", args->ip_str);
@@ -115,7 +172,7 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
     strcpy(args->ip_str, ip_str);
 
     // create thread:
-    if (pthread_create(pthread_id, NULL, connection_worker, args) != 0) {
+    if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
         free(args);
         return 1;
@@ -124,96 +181,6 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
     return 0;
 }
 
-int init_program(int argc, char *argv[], int* listen_fd) {
-    openlog(NULL, LOG_PID | LOG_CONS, LOG_USER);
-
-    // try setup listener:
-    *listen_fd = setup_socket_listener(LISTEN_PORT);
-    if (*listen_fd == -1) {
-        return -1;
-    }
-
-    // daemonize if flag found:
-    int opt;
-    while ((opt = getopt(argc, argv, "d")) != -1) {
-        switch (opt) {
-            case 'd':
-                if (daemonize() == -1) {
-                    close(*listen_fd);
-                    return -1;
-                }
-                break;
-            default:
-                abort();
-                break;
-        }
-    }
-
-    // sigint handler:
-    struct sigaction sa_int;
-    memset(&sa_int, 0, sizeof(sa_int));
-    sa_int.sa_handler = handle_sigint;
-    sigemptyset(&sa_int.sa_mask);
-    if (sigaction(SIGINT,  &sa_int, NULL) == -1 ||
-        sigaction(SIGTERM, &sa_int, NULL) == -1) {
-        syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        return -1;
-    }
-
-    // sigalrm handler:
-    struct sigaction sa_alrm;
-    memset(&sa_alrm, 0, sizeof(sa_alrm));
-    sa_alrm.sa_handler = handle_sigalrm;
-    sigemptyset(&sa_alrm.sa_mask);
-    sa_alrm.sa_flags = SA_RESTART;
-    if (sigaction(SIGALRM,  &sa_alrm, NULL) == -1) {
-        syslog(LOG_ERR, "sigaction: %s", STRERROR);
-        return -1;
-    }
-
-    return 0;
-}
-
-struct timer_args {
-    pthread_mutex_t* write_mutex;
-    int interval_seconds;
-}
-static void* timer_worker(void* arg) {
-    struct timer_args* args = (struct timer_args*)arg;
-    sigset_t signal_set;
-    int signal;
-    struct itimerval timer;
-
-    sigemptyset(&signal_set);
-    sigaddset(&signal_set, SIGALRM);
-
-    if (sigprocmask(SIG_BLOCK, &signal_set, NULL) != 0) {
-        syslog(LOG_ERR, "sigprocmask: %s", STRERROR);
-        return NULL;
-    }
-
-    timer.it_value.tv_sec = interval_seconds;
-    timer.it_value.tv_usec = 0;
-    timer.it_interval.tv_sec = interval_seconds;
-    timer.it_interval.tv_usec = 0;
-
-    if (setitimer(ITIMER_REAL, &timer, NULL) != 0) {
-        syslog(LOG_ERR, "setitimer: %s", STRERROR);
-        return NULL;
-    }
-    free(args);
-}
-int timer_on_thread(int interval_seconds, pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
-    struct timer_args* args = malloc(sizeof(*args));
-    args->interval_seconds = interval_seconds;
-    args->write_mutex = write_mutex;
-    if (pthread_create(pthread_id, NULL, timer_worker, args) != 0) {
-        syslog(LOG_ERR, "pthread_create: %s", STRERROR);
-        free(args);
-        return 1;
-    }
-    return 0;
-}
 int exit_program(int listen_fd) {
     syslog(LOG_INFO, "Caught signal, exiting");
     close(listen_fd);
@@ -221,9 +188,10 @@ int exit_program(int listen_fd) {
     return 0;
 }
 
+void on_sigalrm(pthread_mutex_t* write_mutex) {
 
-void handle_sigalrm(int signal) 
-{
-    (void)signal;
-    timer_signal += 1;
+}
+
+void on_sigint() {
+    atomic_store(&stop_signal, 1);
 }

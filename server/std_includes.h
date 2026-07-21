@@ -15,7 +15,9 @@
 #include <sys/queue.h>
 #include <sys/time.h>
 #include <time.h>
+#include <stdatomic.h>
 
 #define STRERROR strerror(errno)
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
+#define TIMER_INTERVAL_SECONDS 10
