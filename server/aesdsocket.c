@@ -229,7 +229,7 @@ static void* accept_connection_worker(void* arg) {
     socklen_t csocket_len = sizeof(client_addr);
     int client_fd = accept(args->listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
     if (client_fd == -1) {
-        if (errno == EINTR) goto exit;
+        if (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK) goto exit;
         syslog(LOG_ERR, "accept: %s", STRERROR);
         goto exit;
     }

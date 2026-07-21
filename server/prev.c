@@ -135,7 +135,7 @@ int send_file_back(const char *file_path, int socket_fd)
 // returns socket fd; -1 on error.
 int setup_socket_listener(int port) 
 {
-    int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int socket_fd = socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, 0);
     if (socket_fd == -1) {
         syslog(LOG_ERR, "socket: %s", STRERROR);
         return -1;
