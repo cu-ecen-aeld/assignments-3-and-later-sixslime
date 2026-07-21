@@ -257,7 +257,7 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
         free(args);
-        free(args-ip_str);
+        free(args->ip_str);
         return 1;
     }
     return 0;
