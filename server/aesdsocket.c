@@ -280,7 +280,7 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
         pthread_mutex_unlock(write_mutex);
         return;
     }
-    syslog(LOG_INFO, "timer writing: %s", &buffer);
+    syslog(LOG_INFO, "timer writing: %s", buffer);
     // write:
     int write_fd = open(WRITE_PATH, O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (write_fd == -1) {
