@@ -55,14 +55,13 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                 }
                 close(write_fd);
 
-                // last unlock:
-                pthread_mutex_unlock(write_mutex);
-
                 if (send_file_back(file_path, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
+                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
-
+                // last unlock:
+                pthread_mutex_unlock(write_mutex);
                 line_len = 0;
             }
         }
