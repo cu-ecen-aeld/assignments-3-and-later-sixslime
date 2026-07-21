@@ -270,7 +270,7 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
     time_t now = time(NULL);
     struct tm tm_info;
     localtime_r(&now, &tm_info);
-    size_t str_len = strftime(&buffer, sizeof(buffer), "timestamp:%a, %d, %b, %Y, %H:%M:%S %z\n", &tm_info);
+    size_t str_len = strftime(buffer, sizeof(buffer), "timestamp:%a, %d, %b, %Y, %H:%M:%S %z\n", &tm_info);
     if (str_len == 0) {
         syslog(LOG_ERR, "strftime failed");
         continue;
