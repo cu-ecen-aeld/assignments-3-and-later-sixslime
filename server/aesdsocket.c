@@ -17,35 +17,6 @@ int main(int argc, char *argv[])
     if (init_r != 0) {
         return init_r;
     }
-    
-    // init slist:
-    SLIST_HEAD(thread_slist, thread_entry);
-    struct thread_slist slist_head;
-    SLIST_INIT(&slist_head);
-
-    // loop until signal recieved:
-    while (stop_signal == 0) {
-        // accept on thread:
-        pthread_t pthread_id;
-        if (accept_connection_on_thread(listen_fd, &pthread_id, &write_mutex) != 0) {
-            syslog(LOG_WARNING, "connection not accepted.");
-            continue;
-        }
-        // add thread to list:
-        struct thread_entry* entry = malloc(sizeof(*entry));
-        entry->value = pthread_id;
-        SLIST_INSERT_HEAD(&slist_head, entry, entries);
-    }
-    // join and free threads:
-    struct thread_entry* np;
-    while (!SLIST_EMPTY(&slist_head)) {
-        np = SLIST_FIRST(&slist_head);
-        if (pthread_join(np->value, NULL) != 0) {
-            syslog(LOG_ERR, "pthread_join: %s", STRERROR);
-        }
-        SLIST_REMOVE_HEAD(&slist_head, entries);
-        free(np);
-    }
 
     return exit_program(listen_fd);
 }
@@ -100,9 +71,48 @@ struct signal_listener_args {
 };
 static void* signal_listener_worker(void* arg) {
     struct signal_listener_args* args = (struct signal_listener_args*)arg;
+
+    sigset_t listen_set;
+    sigsetempty(&listen_set);
+    sigsetadd(&listen_set, SIGALRM);
+    sigsetadd(&listen_set, SIGINT);
+    sigsetadd(&listen_set, SIGTERM);
+
+    while (atomic_load(&stop_signal) == 0) {
+        int sig;
+        int wait_r = sigwait(&listen_set, &sig);
+        if (wait_r != 0) {
+            if (wait_r == EINTR) continue;
+            syslog(LOG_ERR, "sigwait: %s", STRERROR);
+            break;
+        }
+        if (sig == SIGALRM) {
+            on_sigalrm(args->write_mutex);
+            continue;
+        }
+        // SIGINT or SIGTERM:
+        atomic_store(&stop_signal, 1);
+        break;
+    }
+
+    free(args);
+    return NULL;
 }
 int signal_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
-
+    // worker args:
+    struct signal_listener_args* args = malloc(sizeof(*args));
+    if (args == NULL) {
+        syslog(LOG_ERR, "malloc signal_listener_args: %s", STRERROR);
+        return 1;
+    }
+    args->write_mutex = write_mutex;
+    // create worker:
+    if (pthread_create(pthread_id, NULL, signal_listener_worker, args) != 0) {
+        syslog(LOG_ERR, "pthread_create: %s", STRERROR);
+        free(args);
+        return 1;
+    }
+    return 0;
 }
 
 struct thread_entry {
@@ -112,12 +122,68 @@ struct thread_entry {
 struct connection_listener_args {
     pthread_mutex_t* write_mutex;
     int listen_fd;
+    int poll_ms;
 };
 static void* connection_listener_worker(void* arg) {
     struct connection_listener_args* args = (struct connection_listener_args*)arg;
-}
-int connection_listener_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
 
+    // init slist:
+    SLIST_HEAD(thread_slist, thread_entry);
+    struct thread_slist slist_head;
+    SLIST_INIT(&slist_head);
+
+    struct pollfd poll_args = { .fd = args->listen_fd, .events = POLLIN };
+
+    while (atomic_load(&stop_signal) == 0) {
+        // poll:
+        int poll_r = poll(&poll_args, 1, args->poll_ms);
+        if (poll_r == 0) { continue; }
+        if (poll_r == -1) {
+            syslog(LOG_ERR, "poll: %s", STRERROR);
+            continue;
+        }
+        // create connection thread:
+        pthread_t connection_pthread;
+        if (accept_connection_on_thread(args->listen_fd, &connection_pthread, args->write_mutex) != 0) {
+            syslog(LOG_WARNING, "connection not accepted.");
+            continue;
+        }
+        // add thread to list:
+        struct thread_entry* entry = malloc(sizeof(*entry));
+        entry->value = connection_pthread;
+        SLIST_INSERT_HEAD(&slist_head, entry, entries);
+    }
+
+    // join and free threads:
+    struct thread_entry* np;
+    while (!SLIST_EMPTY(&slist_head)) {
+        np = SLIST_FIRST(&slist_head);
+        if (pthread_join(np->value, NULL) != 0) {
+            syslog(LOG_ERR, "pthread_join: %s", STRERROR);
+        }
+        SLIST_REMOVE_HEAD(&slist_head, entries);
+        free(np);
+    }
+    free(args);
+    return NULL;
+}
+int connection_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd, int poll_ms) {
+    // worker args:
+    struct connection_listener_args* args = malloc(sizeof(*args));
+    if (args == NULL) {
+        syslog(LOG_ERR, "malloc connection_listener_args: %s", STRERROR);
+        return 1;
+    }
+    args->listen_fd = listen_fd;
+    args->write_mutex = write_mutex;
+    args->poll_ms = poll_ms;
+    // create worker:
+    if (pthread_create(pthread_id, NULL, connection_listener_worker, args) != 0) {
+        syslog(LOG_ERR, "pthread_create: %s", STRERROR);
+        free(args);
+        return 1;
+    }
+    return 0;
 }
 
 struct accept_connection_args {
@@ -126,7 +192,6 @@ struct accept_connection_args {
     // this is *shitty*.
     char* ip_str;
 };
-
 static void* accept_connection_worker(void* arg) {
     struct accept_connection_args* args = (struct accept_connection_args*)arg;
     recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
@@ -137,8 +202,7 @@ static void* accept_connection_worker(void* arg) {
     free(args);
     return NULL;
 }
-
-int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
+int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd) {
 
     // accept:
     struct sockaddr_in client_addr;
@@ -149,14 +213,12 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
         syslog(LOG_ERR, "accept: %s", STRERROR);
         return 1;
     }
-    
     // log readable ip:
     char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
     syslog(LOG_INFO, "Accepted connection from %s", ip_str);
-
-    // construct worker args:
-    struct worker_args* args = malloc(sizeof(*args));
+    // worker args:
+    struct accept_connection_args* args = malloc(sizeof(*args));
     if (args == NULL) {
         syslog(LOG_ERR, "malloc worker args: %s", STRERROR);
         return 1;
@@ -170,18 +232,18 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
         return 1;
     }
     strcpy(args->ip_str, ip_str);
-
-    // create thread:
+    // create worker:
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
         free(args);
         return 1;
     }
-
     return 0;
 }
 
 int exit_program(int listen_fd) {
+    struct itimerval timeroff = {0};
+    setitimer(ITIMER_REAL, &timeroff, NULL);
     syslog(LOG_INFO, "Caught signal, exiting");
     close(listen_fd);
     unlink(WRITE_PATH);

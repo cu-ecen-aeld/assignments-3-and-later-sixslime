@@ -5,11 +5,11 @@ int init_program(int argc, char* argv[], int* listen_fd);
 
 int exit_program(int listen_fd);
 
-int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex);
+int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd);
 
 int signal_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex);
 
-int connection_listener_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mutex_t* write_mutex);
+int connection_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd, int poll_ms);
 
 void on_sigalrm(pthread_mutex_t* write_mutex);
 
