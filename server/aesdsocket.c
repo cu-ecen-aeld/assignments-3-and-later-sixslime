@@ -87,10 +87,10 @@ static void* signal_listener_worker(void* arg) {
     struct signal_listener_args* args = (struct signal_listener_args*)arg;
 
     sigset_t listen_set;
-    sigsetempty(&listen_set);
-    sigsetadd(&listen_set, SIGALRM);
-    sigsetadd(&listen_set, SIGINT);
-    sigsetadd(&listen_set, SIGTERM);
+    sigemptyset(&listen_set);
+    sigaddset(&listen_set, SIGALRM);
+    sigaddset(&listen_set, SIGINT);
+    sigaddset(&listen_set, SIGTERM);
 
     while (atomic_load(&stop_signal) == 0) {
         int sig;

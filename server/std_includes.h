@@ -16,6 +16,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <stdatomic.h>
+#include <poll.h>
 
 #define STRERROR strerror(errno)
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
