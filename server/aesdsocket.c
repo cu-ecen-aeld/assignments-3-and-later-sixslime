@@ -218,9 +218,9 @@ static void* accept_connection_worker(void* arg) {
     socklen_t csocket_len = sizeof(client_addr);
     int client_fd = accept(args->listen_fd, (struct sockaddr *)&client_addr, &csocket_len);
     if (client_fd == -1) {
-        if (errno == EINTR) return NULL;
+        if (errno == EINTR) goto exit;
         syslog(LOG_ERR, "accept: %s", STRERROR);
-        return NULL;
+        goto exit;
     }
     // log readable ip:
     char ip_str[INET_ADDRSTRLEN];
@@ -231,6 +231,7 @@ static void* accept_connection_worker(void* arg) {
     close(client_fd);
     syslog(LOG_INFO, "Closed connection from %s", ip_str);
 
+    exit:
     free(args);
     return NULL;
 }
