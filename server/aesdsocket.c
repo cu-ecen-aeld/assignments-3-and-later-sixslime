@@ -1,6 +1,14 @@
+// STUDENT:
+// yknow the 1 thread per connection was pretty cool and fun,
+// then I tried for an indepedent and accurate 10 second timer and everything went to shit.
+// I refuse to use a naive sleep(10) loop where the loop body locks on a mutex.
+// I used to think Rust was great, but now I *know* Rust is great if this is what it's replacing.
+// Boy do I love signal handling!
+
 #include "aesdsocket.h"
 
 static volatile sig_atomic_t stop_signal = 0;
+static volatile sig_atomic_t timer_signal = 0;
 static pthread_mutex_t write_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 struct thread_entry {
@@ -15,7 +23,14 @@ int main(int argc, char *argv[])
     if (init_r != 0) {
         return init_r;
     }
-
+    
+    // start timer:
+    struct itimerval timer;
+    timer.it_value.tv_sec = TIMER_INTERVAL_SECONDS;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = TIMER_INTERVAL_SECONDS;
+    timer.it_interval.tv_usec = 0;
+    if (setitimer(ITIMER_REAL, &timer, NULL))
     // init slist:
     SLIST_HEAD(thread_slist, thread_entry);
     struct thread_slist slist_head;
@@ -55,7 +70,7 @@ struct worker_args {
     char* ip_str;
 };
 
-static void* thread_work(void* arg) {
+static void* connection_worker(void* arg) {
     struct worker_args* args = (struct worker_args*)arg;
     recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
     close(args->client_fd);
@@ -100,7 +115,7 @@ int accept_connection_on_thread(int listen_fd, pthread_t* pthread_id, pthread_mu
     strcpy(args->ip_str, ip_str);
 
     // create thread:
-    if (pthread_create(pthread_id, NULL, thread_work, args) != 0) {
+    if (pthread_create(pthread_id, NULL, connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
         free(args);
         return 1;
@@ -134,19 +149,71 @@ int init_program(int argc, char *argv[], int* listen_fd) {
         }
     }
 
-    // signal handling:
-    struct sigaction sa;
-    memset(&sa, 0, sizeof(sa));
-    sa.sa_handler = handle_signal;
-    sigemptyset(&sa.sa_mask);
-    if (sigaction(SIGINT,  &sa, NULL) == -1 ||
-        sigaction(SIGTERM, &sa, NULL) == -1) {
+    // sigint handler:
+    struct sigaction sa_int;
+    memset(&sa_int, 0, sizeof(sa_int));
+    sa_int.sa_handler = handle_sigint;
+    sigemptyset(&sa_int.sa_mask);
+    if (sigaction(SIGINT,  &sa_int, NULL) == -1 ||
+        sigaction(SIGTERM, &sa_int, NULL) == -1) {
         syslog(LOG_ERR, "sigaction: %s", STRERROR);
         return -1;
     }
+
+    // sigalrm handler:
+    struct sigaction sa_alrm;
+    memset(&sa_alrm, 0, sizeof(sa_alrm));
+    sa_alrm.sa_handler = handle_sigalrm;
+    sigemptyset(&sa_alrm.sa_mask);
+    sa_alrm.sa_flags = SA_RESTART;
+    if (sigaction(SIGALRM,  &sa_alrm, NULL) == -1) {
+        syslog(LOG_ERR, "sigaction: %s", STRERROR);
+        return -1;
+    }
+
     return 0;
 }
 
+struct timer_args {
+    pthread_mutex_t* write_mutex;
+    int interval_seconds;
+}
+static void* timer_worker(void* arg) {
+    struct timer_args* args = (struct timer_args*)arg;
+    sigset_t signal_set;
+    int signal;
+    struct itimerval timer;
+
+    sigemptyset(&signal_set);
+    sigaddset(&signal_set, SIGALRM);
+
+    if (sigprocmask(SIG_BLOCK, &signal_set, NULL) != 0) {
+        syslog(LOG_ERR, "sigprocmask: %s", STRERROR);
+        return NULL;
+    }
+
+    timer.it_value.tv_sec = interval_seconds;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = interval_seconds;
+    timer.it_interval.tv_usec = 0;
+
+    if (setitimer(ITIMER_REAL, &timer, NULL) != 0) {
+        syslog(LOG_ERR, "setitimer: %s", STRERROR);
+        return NULL;
+    }
+    free(args);
+}
+int timer_on_thread(int interval_seconds, pthread_t* pthread_id, pthread_mutex_t* write_mutex) {
+    struct timer_args* args = malloc(sizeof(*args));
+    args->interval_seconds = interval_seconds;
+    args->write_mutex = write_mutex;
+    if (pthread_create(pthread_id, NULL, timer_worker, args) != 0) {
+        syslog(LOG_ERR, "pthread_create: %s", STRERROR);
+        free(args);
+        return 1;
+    }
+    return 0;
+}
 int exit_program(int listen_fd) {
     syslog(LOG_INFO, "Caught signal, exiting");
     close(listen_fd);
@@ -154,8 +221,9 @@ int exit_program(int listen_fd) {
     return 0;
 }
 
-void handle_signal(int signal) 
+
+void handle_sigalrm(int signal) 
 {
     (void)signal;
-    stop_signal = 1;
+    timer_signal += 1;
 }

@@ -13,6 +13,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/queue.h>
+#include <sys/time.h>
+#include <time.h>
 
 #define STRERROR strerror(errno)
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
