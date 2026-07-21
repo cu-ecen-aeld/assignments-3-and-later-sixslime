@@ -264,6 +264,7 @@ int exit_program(int listen_fd) {
 }
 
 void on_sigalrm(pthread_mutex_t* write_mutex) {
+    syslog(LOG_INFO, "Handling sigalrm");
     char buffer[128];
     // acquire lock before getting time probably good no?
     pthread_mutex_lock(write_mutex);
@@ -294,5 +295,6 @@ void on_sigalrm(pthread_mutex_t* write_mutex) {
 }
 
 void on_sigint() {
+    syslog(LOG_INFO, "Handling sigint");
     atomic_store(&stop_signal, 1);
 }
