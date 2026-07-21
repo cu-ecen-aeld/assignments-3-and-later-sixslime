@@ -210,21 +210,9 @@ int connection_listener_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_
 struct accept_connection_args {
     int client_fd;
     pthread_mutex_t* write_mutex;
-    // this is *shitty*.
-    char* ip_str;
 };
 static void* accept_connection_worker(void* arg) {
     struct accept_connection_args* args = (struct accept_connection_args*)arg;
-    recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
-    close(args->client_fd);
-    syslog(LOG_INFO, "Closed connection from %s", args->ip_str);
-
-    free(args->ip_str);
-    free(args);
-    return NULL;
-}
-int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd) {
-
     // accept:
     struct sockaddr_in client_addr;
     socklen_t csocket_len = sizeof(client_addr);
@@ -232,31 +220,33 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
     if (client_fd == -1) {
         if (errno == EINTR) return 1;
         syslog(LOG_ERR, "accept: %s", STRERROR);
-        return 1;
+        return NULL;
     }
     // log readable ip:
     char ip_str[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, ip_str, sizeof(ip_str));
     syslog(LOG_INFO, "Accepted connection from %s", ip_str);
+    
+    recv_send_file(WRITE_PATH, args->client_fd, args->write_mutex);
+    close(args->client_fd);
+    syslog(LOG_INFO, "Closed connection from %s", ip_str);
+
+    free(args);
+    return NULL;
+}
+int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mutex, int listen_fd) {
+
     // worker args:
     struct accept_connection_args* args = malloc(sizeof(*args));
     if (args == NULL) {
-        syslog(LOG_ERR, "malloc worker args: %s", STRERROR);
+        syslog(LOG_ERR, "malloc accept_connection_args: %s", STRERROR);
         return 1;
     }
     args->write_mutex = write_mutex;
     args->client_fd = client_fd;
-    // what are we doing !??
-    args->ip_str = malloc(strlen(ip_str) + 1);
-    if (args->ip_str == NULL) {
-        syslog(LOG_ERR, "malloc ip_str: %s", STRERROR);
-        return 1;
-    }
-    strcpy(args->ip_str, ip_str);
     // create worker:
     if (pthread_create(pthread_id, NULL, accept_connection_worker, args) != 0) {
         syslog(LOG_ERR, "pthread_create: %s", STRERROR);
-        free(args->ip_str);
         free(args);
         return 1;
     }
