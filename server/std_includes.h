@@ -22,4 +22,4 @@
 #define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
 #define TIMER_INTERVAL_SECONDS 10
-#define POLL_MS 25
+#define POLL_MS 5
