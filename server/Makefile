@@ -1,10 +1,10 @@
-CC = $(CROSS_COMPILE)gcc
-CFLAGS = -Wall -Wextra -O2
+CC ?= $(CROSS_COMPILE)gcc
+CFLAGS ?= -Wall -Wextra -O2
+LDFLAGS ?= -lpthread -lrt
+TARGET ?= aesdsocket
 
 SRC = $(wildcard *.c)
 OBJ = $(SRC:.c=.o)
-
-TARGET := aesdsocket
 
 .PHONY: default all clean
 
@@ -13,7 +13,7 @@ default: all
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(LDFLAGS) -o $@ $^
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
