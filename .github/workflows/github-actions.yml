@@ -3,7 +3,7 @@ on:
     push:
         tags-ignore:
             - '*'
-        branches:
+        branches-ignore:
             - '*'
 jobs:
     unit-test:
