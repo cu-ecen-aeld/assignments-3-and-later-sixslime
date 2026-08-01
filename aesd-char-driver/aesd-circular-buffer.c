@@ -73,3 +73,10 @@ void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
 {
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
 }
+
+struct aesd_buffer_entry new_buffer_entry(char* buffptr) {
+    return (struct aesd_buffer_entry){
+        .buffptr = buffptr,
+        .size = 0,
+    };
+}

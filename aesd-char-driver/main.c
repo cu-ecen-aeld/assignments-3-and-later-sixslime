@@ -10,7 +10,6 @@
  * @copyright Copyright (c) 2019
  *
  */
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/printk.h>
@@ -18,10 +17,12 @@
 #include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
 #include "aesdchar.h"
+#include "aesd-circular-buffer.h"
+
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
 
-MODULE_AUTHOR("Your Name Here"); /** TODO: fill in your name **/
+MODULE_AUTHOR("SixSlime");
 MODULE_LICENSE("Dual BSD/GPL");
 
 struct aesd_dev aesd_device;
@@ -29,9 +30,8 @@ struct aesd_dev aesd_device;
 int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
-    /**
-     * TODO: handle open
-     */
+    /** DONE: handle open */
+    filp->private_data = container_of(inode->i_cdev, struct aesd_cdev, cdev);
     return 0;
 }
 
@@ -39,7 +39,7 @@ int aesd_release(struct inode *inode, struct file *filp)
 {
     PDEBUG("release");
     /**
-     * TODO: handle release
+     * DONE: handle release
      */
     return 0;
 }
@@ -105,7 +105,9 @@ int aesd_init_module(void)
     /**
      * TODO: initialize the AESD specific portion of the device
      */
-
+    mutex_init(&aesd_device->lock);
+    aesd_circular_buffer_init(&aesd_device->buffer);
+    
     result = aesd_setup_cdev(&aesd_device);
 
     if( result ) {
