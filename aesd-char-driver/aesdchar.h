@@ -29,8 +29,9 @@
 struct aesd_dev
 {
      struct mutex lock;
-     struct aesd_circular_buffer buffer;
-     struct aesd_buffer_entry first_entry;
+     // even if fixed-size, seems reasonable to have this on the heap.
+     struct aesd_circular_buffer *circular_buffer_ptr;
+     struct aesd_buffer_entry current_entry;
      struct cdev cdev;
 };
 

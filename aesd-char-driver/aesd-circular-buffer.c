@@ -63,7 +63,14 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
         buffer->out_offs = buffer->in_offs;
     }
     buffer->full = (buffer->in_offs == buffer->out_offs);
+}
 
+void aesd_circular_buffer_add_entry_freeing(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+{
+    if (buffer->entry[buffer->in_offs].buffptr) {
+        free(buffer->entry[buffer->in_offs].buffptr);
+    }
+    aesd_circular_buffer_add_entry(buffer, add_entry);
 }
 
 /**
@@ -74,9 +81,9 @@ void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
 }
 
-struct aesd_buffer_entry new_buffer_entry(char* buffptr) {
+struct aesd_buffer_entry new_buffer_entry() {
     return (struct aesd_buffer_entry){
-        .buffptr = buffptr,
+        .buffptr = NULL,
         .size = 0,
     };
 }
