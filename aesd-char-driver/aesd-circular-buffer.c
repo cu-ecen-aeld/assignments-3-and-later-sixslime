@@ -31,8 +31,8 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 {
     uint8_t entry_index = buffer->out_offs;
     struct aesd_buffer_entry* current_entry = &buffer->entry[entry_index];
-    size_t total_offset = current_entry->size - 1;
-    while (total_offset < char_offset) {
+    size_t total_offset = current_entry->size;
+    while (total_offset <= char_offset) {
         if (++entry_index >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) {
             entry_index = 0;
         }
@@ -42,6 +42,8 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
         current_entry = &buffer->entry[entry_index];
         total_offset += current_entry->size;
     }
+    // it is garunteed that total_offset is >0 here.
+    total_offset--;
     *entry_offset_byte_rtn = (current_entry->size - 1) - (total_offset-char_offset);
     return current_entry;
 }
@@ -65,14 +67,6 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     buffer->full = (buffer->in_offs == buffer->out_offs);
 }
 
-void aesd_circular_buffer_add_entry_freeing(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
-{
-    if (buffer->entry[buffer->in_offs].buffptr) {
-        free(buffer->entry[buffer->in_offs].buffptr);
-    }
-    aesd_circular_buffer_add_entry(buffer, add_entry);
-}
-
 /**
 * Initializes the circular buffer described by @param buffer to an empty struct
 */
@@ -81,7 +75,7 @@ void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer)
     memset(buffer,0,sizeof(struct aesd_circular_buffer));
 }
 
-struct aesd_buffer_entry new_buffer_entry() {
+struct aesd_buffer_entry new_buffer_entry(void) {
     return (struct aesd_buffer_entry){
         .buffptr = NULL,
         .size = 0,

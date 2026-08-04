@@ -14,9 +14,9 @@
 #include <linux/init.h>
 #include <linux/printk.h>
 #include <linux/types.h>
-#include <linux/cdev.h>
 #include <linux/fs.h> // file_operations
 #include <linux/string.h>
+#include <linux/slab.h>
 #include "aesdchar.h"
 #include "aesd-circular-buffer.h"
 
@@ -32,7 +32,7 @@ int aesd_open(struct inode *inode, struct file *filp)
 {
     PDEBUG("open");
     /** DONE: handle open */
-    filp->private_data = container_of(inode->i_cdev, struct aesd_cdev, cdev);
+    filp->private_data = container_of(inode->i_cdev, struct aesd_dev, cdev);
     return 0;
 }
 
@@ -51,7 +51,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_p
     ssize_t retval = 0;
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
     /**
-     * TODO: handle read
+     * DONE: handle read
      */
     struct aesd_dev *dev = filp->private_data;
     struct aesd_circular_buffer *cbuffer = dev->circular_buffer_ptr;
@@ -60,7 +60,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_p
     }
     // get read entry:
     size_t read_offset = 0;
-    struct aesd_aesd_buffer_entry *read_entry = aesd_circular_buffer_find_entry_offset_for_fpos(cbuffer, *f_pos, &read_offset);
+    struct aesd_buffer_entry *read_entry = aesd_circular_buffer_find_entry_offset_for_fpos(cbuffer, *f_pos, &read_offset);
     // return if no data available:
     if (read_entry == NULL) {
         retval = 0;
@@ -73,14 +73,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count, loff_t *f_p
         read_count = max_read;
     }
     // fill output buffer:
-    unsigned long uncopied = copy_to_user(buf, read_entry->buffptr[read_offset], read_count);
+    unsigned long uncopied = copy_to_user(buf, read_entry->buffptr + read_offset, read_count);
     read_count -= uncopied;
-
-    // update circular buffer offset and f_pos:
-    while (&cbuffer->entry[cbuffer->out_offs] != read_entry) {
-        *f_pos -= cbuffer->entry[cbuffer->out_offs].size;
-        cbuffer->out_offs = (cbuffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
-    }
 
     // set outs:
     *f_pos += read_count;
@@ -110,7 +104,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     size_t new_size = old_size + count;
 
     // make new buffer:
-    char* new_buffer = kmalloc(new_size);
+    char* new_buffer = kmalloc(new_size, GFP_KERNEL);
     if (new_buffer == NULL) {
         retval = -ENOMEM;
         goto out;
@@ -120,11 +114,11 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     char* old_buffer = dev->current_entry.buffptr;
     if (old_buffer != NULL) {
         memcpy(new_buffer, old_buffer, old_size);
-        free(old_buffer);
+        kfree(old_buffer);
     };
 
     // append write to new buffer:
-    unsigned long uncopied = copy_from_user(new_buffer[old_size], buf, count);
+    unsigned long uncopied = copy_from_user(new_buffer + old_size, buf, count);
 
     // set outs:
     new_size -= uncopied;
@@ -133,8 +127,12 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     dev->current_entry.size = new_size;
 
     // add entry if newline terminated:
-    if (new_buffer[new_size - 1] == '\n') {
-        aesd_circular_buffer_add_entry_freeing(dev->circular_buffer_ptr, &dev->current_entry);
+    struct aesd_circular_buffer *cbuffer = dev->circular_buffer_ptr;
+    if (new_size > 0 && new_buffer[new_size - 1] == '\n') {
+        if (cbuffer->entry[buffer->in_offs].buffptr) {
+            kfree(cbuffer->entry[buffer->in_offs].buffptr);
+        }
+        aesd_circular_buffer_add_entry(dev->circular_buffer_ptr, &dev->current_entry);
         dev->current_entry = new_buffer_entry();
     }
 
@@ -181,7 +179,10 @@ int aesd_init_module(void)
      * DONE: initialize the AESD specific portion of the device
      */
     mutex_init(&aesd_device.lock);
-    aesd_device.circular_buffer_ptr = kmalloc(sizeof(struct aesd_circular_buffer));
+    aesd_device.circular_buffer_ptr = kmalloc(sizeof(struct aesd_circular_buffer), GFP_KERNEL);
+    if (aesd_device.circular_buffer_ptr == NULL) {
+        return -ENOMEM;
+    }
     aesd_circular_buffer_init(aesd_device.circular_buffer_ptr);
     aesd_device.current_entry = new_buffer_entry();
 
@@ -204,19 +205,19 @@ void aesd_cleanup_module(void)
      * DONE: cleanup AESD specific poritions here as necessary
      */
     
-    // free buffer:
+    // kfree buffer:
     uint8_t index;
     struct aesd_buffer_entry *entry;
     AESD_CIRCULAR_BUFFER_FOREACH(entry,aesd_device.circular_buffer_ptr,index) {
         if (entry->buffptr) {
-            free(entry->buffptr);
+            kfree(entry->buffptr);
         }
     }
-    free(aesd_device.circular_buffer_ptr);
+    kfree(aesd_device.circular_buffer_ptr);
 
-    // free hanging entry:
+    // kfree hanging entry:
     if (aesd_device.current_entry.buffptr) {
-        free(aesd_device.current_entry.buffptr);
+        kfree(aesd_device.current_entry.buffptr);
     }
 
     // destroy mutex:
