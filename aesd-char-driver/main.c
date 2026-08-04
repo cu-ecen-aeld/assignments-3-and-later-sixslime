@@ -10,6 +10,11 @@
  * @copyright Copyright (c) 2019
  *
  */
+// STUDENT:
+// hell of an assignment.
+// used Claude for error checking because im writing kernel C with no IDE (like a boss (idiot)).
+// write code myself -> ask claude to identify errors/bugs -> implement fixes myself.
+
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/printk.h>
