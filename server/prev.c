@@ -43,36 +43,32 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                     pthread_mutex_lock(write_mutex);
                     lock_held = 1;
                 }
-                // special case AESDCHAR_IOCSEEKTO command:
+                // open file:
+                int dev_fd = open(file_path, O_RDWR | O_CREAT | O_APPEND, 0644);
+                if (dev_fd == -1) {
+                    syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
+                    goto out;
+                }
+                // check for AESDCHAR_IOCSEEKTO command:
                 struct aesd_seekto seekto;
                 if (sscanf(line, "AESDCHAR_IOCSEEKTO:%u,%u\n", &seekto.write_cmd, &seekto.write_cmd_offset) == 2) {
-                    // i dont think perms matter here because we didnt implement checks for them?
-                    int ioctl_fd = open(file_path, O_WRONLY | O_CREAT, 0644);
-                    if (ioctl_fd == -1) {
-                        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
-                        goto out;
-                    },
-                    int ioctl_r = ioctl(ioctl_fd, AESDCHAR_IOCSEEKTO, &seekto);
-
+                    int ioctl_r = ioctl(dev_fd, AESDCHAR_IOCSEEKTO, &seekto);
+                    if (ioctl_r != 0) {
+                        syslog(LOG_ERR, "ioctl seekto failed: %d", ioctl_r);
+                    }
                 }
-                // if not a command, write to file:
+                // write to file otherwise:
                 else {
-                    int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-                    if (write_fd == -1) {
-                        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
-                        goto out;
-                    }
-
-                    if (write_all(write_fd, line, line_len) < 0) {
+                    if (write_all(dev_fd, line, line_len) < 0) {
                         syslog(LOG_ERR, "write: %s", STRERROR);
-                        close(write_fd);
+                        close(dev_fd);
                         goto out;
                     }
-                    close(write_fd);
                 }
-                // send back to socket:
-                if (send_file_back(file_path, socket_fd) < 0) {
+                // send file back to socket:
+                if (send_file_back(dev_fd, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
+                    close(dev_fd);
                     goto out;
                 }
                 // last unlock:
@@ -80,6 +76,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                     lock_held = 0;
                     pthread_mutex_unlock(write_mutex);
                 }
+                close(dev_fd);
                 line_len = 0;
             }
         }
@@ -125,26 +122,18 @@ int send_all(int socket_fd, const void *buffer, size_t len)
     return 0;
 }
 
-int send_file_back(const char *file_path, int socket_fd)
+int send_file_back(int read_fd, int socket_fd)
 {
-    int read_fd = open(file_path, O_RDONLY);
-    if (read_fd == -1) {
-        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
-        return -1;
-    }
-
     char buffer[8192];
     for (;;) {
         ssize_t n_read = read(read_fd, buffer, sizeof buffer);
         if (n_read < 0) {
             syslog(LOG_ERR, "read %s: %s", file_path, STRERROR);
-            close(read_fd);
             return -1;
         }
         if (n_read == 0) break;
 
         if (send_all(socket_fd, buffer, (size_t)n_read) < 0) {
-            close(read_fd);
             return -1;
         }
     }
