@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include "aesdchar.h"
 #include "aesd-circular-buffer.h"
+#include "aesd_ioctl.h"
 
 int aesd_major =   0; // use dynamic major
 int aesd_minor =   0;
@@ -128,6 +129,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     // set outs:
     new_size -= uncopied;
     retval = count -= uncopied;
+    *f_pos += retval;
     dev->current_entry.buffptr = new_buffer;
     dev->current_entry.size = new_size;
 
@@ -145,12 +147,42 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     mutex_unlock(&dev->lock);
     return retval;
 }
+
+loff_t aesd_llseek(struct file *filp, loff_t offset, int whence) {
+    PDEBUG("seeking %lld bytes with whence %d",offset, whence);
+    /**
+     * TODO: handle seek
+     */
+    struct aesd_dev *dev = filp->private_data;
+    struct aesd_circular_buffer *cbuffer = dev->circular_buffer_ptr;
+    if (mutex_lock_interruptible(&dev->lock)) {
+        return -ERESTARTSYS;
+    }
+    size_t buffer_size = 0;
+    // count entire buffer if full:
+    if (cbuffer->full) {
+        uint8_t index;
+        struct aesd_buffer_entry *entry;
+        AESD_CIRCULAR_BUFFER_FOREACH(entry,cbuffer,index) {
+            buffer_size += entry->size;
+        }
+    }
+    // count until in_offs if not:
+    else {
+        for (size_t i = cbuffer->out_offs; i != cbuffer->in_offs; i = (i + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) {
+            buffer_size += cbuffer->entry[i].size;
+        }
+    }
+    mutex_unlock(&dev->lock);
+    return fixed_size_llseek(filp, offset, whence, buffer_size);
+}
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
     .write =    aesd_write,
     .open =     aesd_open,
     .release =  aesd_release,
+    .llseek =   aesd_llseek,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
