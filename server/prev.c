@@ -43,19 +43,34 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                     pthread_mutex_lock(write_mutex);
                     lock_held = 1;
                 }
-                int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
-                if (write_fd == -1) {
-                    syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
-                    goto out;
-                }
+                // special case AESDCHAR_IOCSEEKTO command:
+                struct aesd_seekto seekto;
+                if (sscanf(line, "AESDCHAR_IOCSEEKTO:%u,%u\n", &seekto.write_cmd, &seekto.write_cmd_offset) == 2) {
+                    // i dont think perms matter here because we didnt implement checks for them?
+                    int ioctl_fd = open(file_path, O_WRONLY | O_CREAT, 0644);
+                    if (ioctl_fd == -1) {
+                        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
+                        goto out;
+                    },
+                    int ioctl_r = ioctl(ioctl_fd, AESDCHAR_IOCSEEKTO, &seekto);
 
-                if (write_all(write_fd, line, line_len) < 0) {
-                    syslog(LOG_ERR, "write: %s", STRERROR);
+                }
+                // if not a command, write to file:
+                else {
+                    int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                    if (write_fd == -1) {
+                        syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
+                        goto out;
+                    }
+
+                    if (write_all(write_fd, line, line_len) < 0) {
+                        syslog(LOG_ERR, "write: %s", STRERROR);
+                        close(write_fd);
+                        goto out;
+                    }
                     close(write_fd);
-                    goto out;
                 }
-                close(write_fd);
-
+                // send back to socket:
                 if (send_file_back(file_path, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
                     goto out;
