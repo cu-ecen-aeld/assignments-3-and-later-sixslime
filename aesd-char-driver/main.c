@@ -134,8 +134,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     // add entry if newline terminated:
     struct aesd_circular_buffer *cbuffer = dev->circular_buffer_ptr;
     if (new_size > 0 && new_buffer[new_size - 1] == '\n') {
-        if (cbuffer->entry[buffer->in_offs].buffptr) {
-            kfree(cbuffer->entry[buffer->in_offs].buffptr);
+        if (cbuffer->entry[cbuffer->in_offs].buffptr) {
+            kfree(cbuffer->entry[cbuffer->in_offs].buffptr);
         }
         aesd_circular_buffer_add_entry(dev->circular_buffer_ptr, &dev->current_entry);
         dev->current_entry = new_buffer_entry();
