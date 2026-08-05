@@ -151,7 +151,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 loff_t aesd_llseek(struct file *filp, loff_t offset, int whence) {
     PDEBUG("seeking %lld bytes with whence %d",offset, whence);
     /**
-     * TODO: handle seek
+     * DONE: handle seek
      */
     struct aesd_dev *dev = filp->private_data;
     struct aesd_circular_buffer *cbuffer = dev->circular_buffer_ptr;
