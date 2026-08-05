@@ -116,10 +116,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     }
 
     // copy current/old buffer to new buffer:
-    char* old_buffer = dev->current_entry.buffptr;
+    const char* old_buffer = dev->current_entry.buffptr;
     if (old_buffer != NULL) {
         memcpy(new_buffer, old_buffer, old_size);
-        kfree(old_buffer);
+        kfree((char*)old_buffer);
     };
 
     // append write to new buffer:
@@ -215,14 +215,14 @@ void aesd_cleanup_module(void)
     struct aesd_buffer_entry *entry;
     AESD_CIRCULAR_BUFFER_FOREACH(entry,aesd_device.circular_buffer_ptr,index) {
         if (entry->buffptr) {
-            kfree(entry->buffptr);
+            kfree((char*)entry->buffptr);
         }
     }
     kfree(aesd_device.circular_buffer_ptr);
 
     // kfree hanging entry:
     if (aesd_device.current_entry.buffptr) {
-        kfree(aesd_device.current_entry.buffptr);
+        kfree((char*)aesd_device.current_entry.buffptr);
     }
 
     // destroy mutex:
