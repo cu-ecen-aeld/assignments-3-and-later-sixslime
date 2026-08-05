@@ -5,7 +5,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
     char *line = NULL;
     size_t line_len = 0;
     size_t line_cap = 0;
-    bool lock_held = false;
+    int lock_held = 0;
     char buffer[4096];
 
     for (;;) {
@@ -41,7 +41,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                 // lock:
                 if (USE_AESD_CHAR_DEVICE != 1) {
                     pthread_mutex_lock(write_mutex);
-                    lock_held = true;
+                    lock_held = 1;
                 }
                 int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if (write_fd == -1) {
@@ -62,7 +62,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                 }
                 // last unlock:
                 if (USE_AESD_CHAR_DEVICE != 1) {
-                    lock_held = false;
+                    lock_held = 0;
                     pthread_mutex_unlock(write_mutex);
                 }
                 line_len = 0;
@@ -71,7 +71,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
     }
 
     out:
-    if (lock_held) {
+    if (lock_held == 1) {
         pthread_mutex_unlock(write_mutex);
     }
     free(line);
