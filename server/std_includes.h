@@ -18,7 +18,9 @@
 #include <stdatomic.h>
 #include <poll.h>
 
-#define USE_AESD_CHAR_DEVICE 1
+#ifndef USE_AESD_CHAR_DEVICE
+    #define USE_AESD_CHAR_DEVICE 1
+#endif
 
 #define STRERROR strerror(errno)
 #define LISTEN_PORT 9000
@@ -29,3 +31,4 @@
     #define WRITE_PATH "/dev/aesdchar"
 #else
     #define WRITE_PATH "/var/tmp/aesdsocketdata"
+#endif
