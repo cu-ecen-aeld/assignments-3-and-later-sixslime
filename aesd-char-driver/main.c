@@ -181,7 +181,7 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence) {
 long aesd_adjust_file_offset(struct file *filp, unsigned int cmd_index, unsigned int cmd_offset) {
     PDEBUG("ioctl seek: (%u, %u)", cmd_index, cmd_offset);
     /**
-     * TODO: handle ioctl seek
+     * DONE: handle ioctl seek
      */
     if (cmd_index >= AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED) {
         return -EINVAL;
@@ -215,7 +215,7 @@ long aesd_adjust_file_offset(struct file *filp, unsigned int cmd_index, unsigned
     // set outs:
     filp->f_pos = out_offset;
     retval = 0;
-    
+
     out:
     mutex_unlock(&dev->lock);
     return retval;
