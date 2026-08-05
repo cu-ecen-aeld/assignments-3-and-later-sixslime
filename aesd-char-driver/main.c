@@ -176,6 +176,27 @@ loff_t aesd_llseek(struct file *filp, loff_t offset, int whence) {
     mutex_unlock(&dev->lock);
     return fixed_size_llseek(filp, offset, whence, buffer_size);
 }
+
+long aesd_adjust_file_offset(struct file *filp, unsigned int cmd_index, unsigned int cmd_offset) {
+
+}
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
+    long retval = 0;
+    switch(cmd) {
+        case AESDCHAR_IOCSEEKTO:
+            struct aesd_seekto seekto;
+            if (copy_from_user(&seekto, (const void __user*)arg, sizeof(seekto)) != 0) {
+                retval = EFAULT;
+            } else {
+                retval = aesd_adjust_file_offset(filp, seekto.write_cmd, seekto.write_cmd_offset);
+            }
+            break;
+        default:
+            retval = -ENOTTY;
+            break;
+    }
+    return retval;
+}
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
     .read =     aesd_read,
@@ -183,6 +204,7 @@ struct file_operations aesd_fops = {
     .open =     aesd_open,
     .release =  aesd_release,
     .llseek =   aesd_llseek,
+    .unlocked_ioctl = aesd_ioctl,
 };
 
 static int aesd_setup_cdev(struct aesd_dev *dev)
