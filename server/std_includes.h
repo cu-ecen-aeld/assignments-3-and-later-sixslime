@@ -18,8 +18,14 @@
 #include <stdatomic.h>
 #include <poll.h>
 
+#define USE_AESD_CHAR_DEVICE 1
+
 #define STRERROR strerror(errno)
-#define WRITE_PATH "/var/tmp/aesdsocketdata"
 #define LISTEN_PORT 9000
 #define TIMER_INTERVAL_SECONDS 10
 #define POLL_MS 5
+
+#if USE_AESD_CHAR_DEVICE == 1
+    #define WRITE_PATH "/dev/aesdchar"
+#else
+    #define WRITE_PATH "/var/tmp/aesdsocketdata"

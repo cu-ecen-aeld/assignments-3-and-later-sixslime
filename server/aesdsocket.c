@@ -267,6 +267,10 @@ int accept_connection_on_thread(pthread_t* pthread_id, pthread_mutex_t* write_mu
 
 void on_sigalrm(pthread_mutex_t* write_mutex) {
     syslog(LOG_INFO, "Handling sigalrm");
+    // return immediately if using char device:
+    if (USE_AESD_CHAR_DEVICE == 1) {
+        return;
+    }
     char buffer[128];
     // acquire lock before getting time probably good no?
     pthread_mutex_lock(write_mutex);

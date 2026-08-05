@@ -5,7 +5,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
     char *line = NULL;
     size_t line_len = 0;
     size_t line_cap = 0;
-
+    bool lock_held = false;
     char buffer[4096];
 
     for (;;) {
@@ -39,35 +39,41 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
 
             if (c == '\n') {
                 // lock:
-                pthread_mutex_lock(write_mutex);
+                if (USE_AESD_CHAR_DEVICE != 1) {
+                    pthread_mutex_lock(write_mutex);
+                    lock_held = true;
+                }
                 int write_fd = open(file_path, O_WRONLY | O_CREAT | O_APPEND, 0644);
                 if (write_fd == -1) {
                     syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
-                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
 
                 if (write_all(write_fd, line, line_len) < 0) {
                     syslog(LOG_ERR, "write: %s", STRERROR);
                     close(write_fd);
-                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
                 close(write_fd);
 
                 if (send_file_back(file_path, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
-                    pthread_mutex_unlock(write_mutex);
                     goto out;
                 }
                 // last unlock:
-                pthread_mutex_unlock(write_mutex);
+                if (USE_AESD_CHAR_DEVICE != 1) {
+                    lock_held = false;
+                    pthread_mutex_unlock(write_mutex);
+                }
                 line_len = 0;
             }
         }
     }
 
-out:
+    out:
+    if (lock_held) {
+        pthread_mutex_unlock(write_mutex);
+    }
     free(line);
 }
 
