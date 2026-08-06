@@ -55,9 +55,12 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                 }
                 // check for AESDCHAR_IOCSEEKTO command:
                 struct aesd_seekto seekto;
+                unsigned int write_cmd, write_cmd_offset;
                 // ~ yo this is bs.
-                if (sscanf(line, "AESDCHAR_IOCSEEKTO:%" SCNu32 ",%" SCNu32,
-                        &seekto.write_cmd, &seekto.write_cmd_offset) == 2) {
+                if (sscanf(line, "AESDCHAR_IOCSEEKTO:%u,%u",
+                        &write_cmd, &write_cmd_offset) == 2) {
+                    seekto.write_cmd = write_cmd;
+                    seekto.write_cmd_offset = write_cmd_offset;
                     int ioctl_r = ioctl(dev_fd, AESDCHAR_IOCSEEKTO, &seekto);
                     if (ioctl_r != 0) {
                         syslog(LOG_ERR, "ioctl: %s", STRERROR);

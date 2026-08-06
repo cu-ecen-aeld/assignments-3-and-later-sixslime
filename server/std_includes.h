@@ -17,7 +17,6 @@
 #include <time.h>
 #include <stdatomic.h>
 #include <poll.h>
-#include <inttypes.h>
 #include "aesd_ioctl.h"
 
 #ifndef USE_AESD_CHAR_DEVICE
