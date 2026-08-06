@@ -193,24 +193,22 @@ long aesd_adjust_file_offset(struct file *filp, unsigned int cmd_index, unsigned
     if (mutex_lock_interruptible(&dev->lock)) {
         return -ERESTARTSYS;
     }
-    // *hella* stupid checks.
-    size_t entry_index = cbuffer->out_offs;
-    if (entry_index == cbuffer->in_offs && !cbuffer->full) {
+    // check amount of valid entries:
+    uint8_t valid_entries = cbuffer->full
+        ? AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED
+        : (uint8_t)((cbuffer->in_offs + AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED - cbuffer->out_offs)
+                    % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED);
+    if (cmd_index >= valid_entries) {
         retval = -EINVAL;
         goto out;
     }
+    // entry offset:
+    uint8_t entry_index = cbuffer->out_offs;
     for (unsigned int i = 0; i < cmd_index; i++) {
-        if (entry_index == cbuffer->in_offs) {
-            retval = -EINVAL;
-            goto out;
-        }
         out_offset += cbuffer->entry[entry_index].size;
         entry_index = (entry_index + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
     }
-    if (entry_index == cbuffer->in_offs) {
-        retval = -EINVAL;
-        goto out;
-    }
+    // char offset:
     if (cmd_offset >= cbuffer->entry[entry_index].size) {
         retval = -EINVAL;
         goto out;
