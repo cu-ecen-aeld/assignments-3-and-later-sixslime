@@ -69,7 +69,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                         goto out;
                     }
                     // seek back to beginning so read() reads full file:
-                    if (lseek(dev_fd, 0, SEEK_SET) != 1) {
+                    if (lseek(dev_fd, 0, SEEK_SET) != 0) {
                         syslog(LOG_ERR, "lseek: %s", STRERROR);
                         close(dev_fd);
                         goto out;
