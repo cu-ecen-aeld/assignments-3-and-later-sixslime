@@ -70,6 +70,12 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                     }
                 }
                 // send file back to socket:
+                // - sync if not char device
+                if (USE_AESD_CHAR_DEVICE != 1) {
+                    if (fsync(dev_fd) != 0) {
+                        syslog(LOG_ERR, "fsync: %s", STRERROR);
+                    }
+                }
                 if (send_file_back(dev_fd, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
                     close(dev_fd);
