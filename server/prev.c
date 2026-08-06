@@ -61,6 +61,7 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                         &write_cmd, &write_cmd_offset) == 2) {
                     seekto.write_cmd = write_cmd;
                     seekto.write_cmd_offset = write_cmd_offset;
+                    syslog(LOG_INFO, "attempting to seek to (%u, %u) [%u, %u]", seekto.write_cmd, seekto.write_cmd_offset, write_cmd, write_cmd_offset);
                     int ioctl_r = ioctl(dev_fd, AESDCHAR_IOCSEEKTO, &seekto);
                     if (ioctl_r != 0) {
                         syslog(LOG_ERR, "ioctl: %s", STRERROR);
