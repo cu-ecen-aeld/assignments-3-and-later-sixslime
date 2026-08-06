@@ -128,7 +128,7 @@ int send_file_back(int read_fd, int socket_fd)
     for (;;) {
         ssize_t n_read = read(read_fd, buffer, sizeof buffer);
         if (n_read < 0) {
-            syslog(LOG_ERR, "read %s: %s", file_path, STRERROR);
+            syslog(LOG_ERR, "read: %s", STRERROR);
             return -1;
         }
         if (n_read == 0) break;
