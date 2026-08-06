@@ -44,7 +44,11 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                     lock_held = 1;
                 }
                 // open file:
-                int dev_fd = open(file_path, O_RDWR | O_CREAT | O_APPEND, 0644);
+                int open_flags = O_RDWR | O_APPEND;
+                if (USE_AESD_CHAR_DEVICE != 1) {
+                    open_flags |= O_CREAT;
+                }
+                int dev_fd = open(file_path, open_flags, 0644);
                 if (dev_fd == -1) {
                     syslog(LOG_ERR, "open %s: %s", file_path, STRERROR);
                     goto out;
