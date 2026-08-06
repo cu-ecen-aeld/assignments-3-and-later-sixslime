@@ -68,14 +68,20 @@ void recv_send_file(const char *file_path, int socket_fd, pthread_mutex_t* write
                         close(dev_fd);
                         goto out;
                     }
+                    // seek back to beginning so read() reads full file:
+                    if (lseek(dev_fd, 0, SEEK_SET) != 1) {
+                        syslog(LOG_ERR, "lseek: %s", STRERROR);
+                        close(dev_fd);
+                        goto out;
+                    }
                 }
-                // send file back to socket:
-                // - sync if not char device
+                // sync if not char device, probably not needed but whatever:
                 if (USE_AESD_CHAR_DEVICE != 1) {
                     if (fsync(dev_fd) != 0) {
                         syslog(LOG_ERR, "fsync: %s", STRERROR);
                     }
                 }
+                // send file back to socket:
                 if (send_file_back(dev_fd, socket_fd) < 0) {
                     syslog(LOG_ERR, "send_file_back: %s", STRERROR);
                     close(dev_fd);
