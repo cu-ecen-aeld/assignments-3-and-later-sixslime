@@ -95,7 +95,9 @@ int exit_program(int listen_fd) {
     setitimer(ITIMER_REAL, &timeroff, NULL);
     syslog(LOG_INFO, "Caught signal, exiting");
     close(listen_fd);
-    unlink(WRITE_PATH);
+    if (USE_AESD_CHAR_DEVICE != 1) {
+        unlink(WRITE_PATH);
+    }
     return 0;
 }
 
